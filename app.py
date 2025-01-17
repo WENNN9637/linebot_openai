@@ -8,7 +8,7 @@ import tempfile
 import datetime
 import time
 import string
-#from fine_tune import GPT_response
+from finetuning import GPT_response
 
 app = Flask(__name__, template_folder='templates')
 static_tmp_path = os.path.join(os.path.dirname(__file__), 'static', 'tmp')
@@ -51,7 +51,7 @@ def callback():
 
 
 # 處理訊息
-"""@handler.add(MessageEvent, message=TextMessage)
+@handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     msg = event.message.text
     GPT_answer = GPT_response(msg)  # 在這裡呼叫 GPT_response 函數處理用戶的訊息
@@ -61,4 +61,3 @@ def handle_message(event):
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-"""
