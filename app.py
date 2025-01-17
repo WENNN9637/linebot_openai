@@ -49,7 +49,7 @@ def callback():
     return 'OK'
 
 
-"""
+
 # 處理訊息
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
@@ -57,7 +57,7 @@ def handle_message(event):
     GPT_answer = GPT_response(msg)  # 在這裡呼叫 GPT_response 函數處理用戶的訊息
     print(GPT_answer)
     line_bot_api.reply_message(event.reply_token, TextSendMessage(GPT_answer))
-    """
+    
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # 默認為 5000，Render 部署時會指定 PORT
     app.run(host="0.0.0.0", port=port)
