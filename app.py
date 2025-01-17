@@ -59,5 +59,4 @@ def handle_message(event):
     line_bot_api.reply_message(event.reply_token, TextSendMessage(GPT_answer))
     
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # 默認為 5000，Render 部署時會指定 PORT
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=10000)
