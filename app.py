@@ -8,7 +8,7 @@ import tempfile
 import datetime
 import time
 import string
-from finetuning import GPT_response
+#from finetuning import GPT_response
 
 app = Flask(__name__, template_folder='templates')
 static_tmp_path = os.path.join(os.path.dirname(__file__), 'static', 'tmp')
