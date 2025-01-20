@@ -13,9 +13,7 @@ import tempfile, os
 import datetime
 import openai
 import time
-import threading
 import traceback
-import requests
 #======python的函數庫==========
 
 app = Flask(__name__)
@@ -35,18 +33,6 @@ def GPT_response(text):
     # 重組回應
     answer = response['choices'][0]['text'].replace('。','')
     return answer
-
-
-# 心跳檢查功能
-def send_heartbeat():
-    while True:
-        try:
-            # 替換為你的應用部署的完整 URL
-            requests.get("https://your-app-name.onrender.com")
-            print("Heartbeat sent successfully.")
-        except Exception as e:
-            print(f"Heartbeat failed: {e}")
-        time.sleep(300)  # 每 5 分鐘發送一次請求
 
 
 # 監聽所有來自 /callback 的 Post Request
@@ -76,7 +62,7 @@ def handle_message(event):
     except:
         print(traceback.format_exc())
         line_bot_api.reply_message(event.reply_token, TextSendMessage('你所使用的OPENAI API key額度可能已經超過，請於後台Log內確認錯誤訊息'))
-
+        
 
 @handler.add(PostbackEvent)
 def handle_message(event):
@@ -91,12 +77,9 @@ def welcome(event):
     name = profile.display_name
     message = TextSendMessage(text=f'{name}歡迎加入')
     line_bot_api.reply_message(event.reply_token, message)
-
-
+        
+        
+import os
 if __name__ == "__main__":
-    # 啟動心跳執行緒
-    threading.Thread(target=send_heartbeat, daemon=True).start()
-    
-    # 啟動 Flask 應用
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
