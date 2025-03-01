@@ -50,7 +50,7 @@ print(completion2.choices[0].message.content)
 
 def GPT_response(text):
     response = openai.ChatCompletion.create(
-        model="ftjob-TJHXYaUkHGm9hHSqFxmQIuAq",
+        model="ft:gpt-4o-2024-08-06:personal::B5sbnkYa",
         messages=[
             {"role": "user", "content": text}
         ]
