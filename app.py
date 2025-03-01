@@ -37,7 +37,7 @@ def GPT_response(text):
     )
     print(response.choices[0].message.content)
     # 重組回應
-    answer = response['choices'][0]['text'].replace('。','')
+    # answer = response['choices'][0]['text'].replace('。','')
     return answer
 
 
