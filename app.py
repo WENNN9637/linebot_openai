@@ -34,6 +34,7 @@ def GPT_response(text):
             {"role": "user", "content": "Write a C program fibonacci"},
         ],
         max_tokens=100
+    )
     print(response.choices[0].message.content)
     # 重組回應
     answer = response['choices'][0]['text'].replace('。','')
