@@ -52,14 +52,11 @@ def GPT_response(text):
     response = openai.ChatCompletion.create(
         model="ftjob-TJHXYaUkHGm9hHSqFxmQIuAq",
         messages=[
-            {"role": "user", "content": "Write a C program binary"},
             {"role": "user", "content": text}
         ]
     )
 
-    answer = response.choices[0].message.content
-
-    # 去除回复文本中的標點符號
-    answer = answer.translate(str.maketrans('', '', string.punctuation))
+    answer = response.choices[0].message.content.strip()  # 移除首尾多餘空行
+    answer = answer.replace("\n\n", "\n")  # 移除連續空行
 
     return answer
