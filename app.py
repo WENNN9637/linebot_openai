@@ -31,7 +31,7 @@ def GPT_response(text):
     response = openai.ChatCompletion.create(
         model="gpt-4o", 
         messages=[
-            {"role": "user", "content": "Write a C program fibonacci"},
+            {"role": "user", "content": "text"},
         ],
         max_tokens=500,
         timeout=30
