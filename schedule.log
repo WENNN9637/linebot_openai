@@ -2,7 +2,7 @@ docker run -d \
 --restart always \
 --name wakeup-render \
 -e URL=https://yourwebsite.domain.com/ \
--e APSCHEDULER_DAY_OF_WEEK=mon-fri \
+-e APSCHEDULER_DAY_OF_WEEK=mon-sun \
 -e APSCHEDULER_MINUTE=*/10 \
 -v /Users/yen/Desktop/schedule.log:/app/scheduler.log \
 chunyenc/wakeup-machine
