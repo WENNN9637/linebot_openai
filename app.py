@@ -25,6 +25,28 @@ handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
 # OPENAI API Key初始化設定
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
+def GPT_response(text):
+    model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(text) else "gpt-4o"
+
+    try:
+        response = openai.ChatCompletion.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "你只能使用繁體中文或英文回答。"},
+                {"role": "user", "content": text}
+            ],
+            max_tokens=500,
+            timeout=30
+        )
+
+        answer = response["choices"][0]["message"]["content"].strip()
+        return answer
+
+    except Exception as e:
+        print(traceback.format_exc())
+        return "系統錯誤，請稍後再試！"
+        
+"""
 def is_c_language(text):
     c_keywords = ["#include", "int ", "void ", "printf(", "scanf(", "return", "malloc", "free", "sizeof", "struct ", "typedef ", "->", "::", "main()"]
     return any(keyword in text for keyword in c_keywords)
@@ -41,7 +63,7 @@ def GPT_response(text):
     )
     
     return response["choices"][0]["message"]["content"].strip()
-"""
+
 def GPT_response(text):
     # 接收回應
     response = openai.ChatCompletion.create(
