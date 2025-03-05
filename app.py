@@ -37,7 +37,7 @@ def GPT_response(text):
         return "請稍後再試！"
     
     model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(text) else "gpt-4o"
-    
+    print(f"使用的模型: {model}")  # 顯示當下使用的模型 (在後台 Log 中)
     response = openai.ChatCompletion.create(
         model=model,
         messages=[
