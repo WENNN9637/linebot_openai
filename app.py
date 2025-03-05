@@ -25,28 +25,22 @@ handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
 # OPENAI API Key初始化設定
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
-def is_code_related(text):
-    keywords = ["#include", "int ", "void ", "return", "if(", "else", "for(", "while(", "printf", "scanf", "{", "}", "Python", "Java", "C++", "main()", "def ", "class ", "import "]
-    return any(keyword in text for keyword in keywords)
+def is_c_language(text):
+    c_keywords = ["#include", "int ", "void ", "printf(", "scanf(", "return", "malloc", "free", "sizeof", "struct ", "typedef ", "->", "::", "main()"]
+    return any(keyword in text for keyword in c_keywords)
 
 def GPT_response(text):
-    # 判斷是否為程式碼相關問題
-    model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_code_related(text) else "gpt-4o"
+    # 如果是 C 語言問題，就用微調模型，否則用 GPT-4o
+    model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(text) else "gpt-4o"
     
-    try:
-        response = openai.ChatCompletion.create(
-            model=model,
-            messages=[{"role": "user", "content": text}],
-            max_tokens=500,
-            timeout=30
-        )
-        return response["choices"][0]["message"]["content"].strip()
-    except openai.error.OpenAIError as e:
-        print("❌ OpenAI API 錯誤:", e)
-        return "⚠️ OpenAI 伺服器錯誤，請稍後再試"
-    except Exception as e:
-        print(traceback.format_exc())
-        return "⚠️ 發生未知錯誤，請稍後再試"
+    response = openai.ChatCompletion.create(
+        model=model,
+        messages=[{"role": "user", "content": text}],
+        max_tokens=500,
+        timeout=30
+    )
+    
+    return response["choices"][0]["message"]["content"].strip()
 """
 def GPT_response(text):
     # 接收回應
