@@ -25,7 +25,22 @@ handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
 # OPENAI API Key初始化設定
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
+def GPT_response(text):
+    try:
+        response = openai.ChatCompletion.create(
+            model="ft:gpt-4o-2024-08-06:personal::B5sbnkYa",
+            messages=[
+                {"role": "system", "content": "You are an expert C programmer. Always output only the C code."},
+                {"role": "user", "content": f"Write a standard C program for the following requirement:\n{text}"}
+            ]
+        )
+        answer = response.choices[0].message["content"].strip()
+    except openai.error.OpenAIError as e:
+        print(f"OpenAI API 錯誤: {e}")
+        return None
 
+    return answer
+"""
 def GPT_response(text):
     # 接收回應
     response = openai.ChatCompletion.create(
@@ -40,7 +55,7 @@ def GPT_response(text):
     # 重組回應
     answer = response["choices"][0]["message"]["content"]
     return answer
-
+"""
 
 # 監聽所有來自 /callback 的 Post Request
 @app.route("/callback", methods=['POST'])
