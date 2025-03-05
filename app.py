@@ -29,9 +29,19 @@ def is_c_language(text):
     c_keywords = ["#include", "int ", "void ", "printf(", "scanf(", "return", "malloc", "free", "sizeof", "struct ", "typedef ", "->", "::", "main()"]
     return any(keyword in text for keyword in c_keywords)
     
-def GPT_response(text):
-    model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(text) else "gpt-4o"
 
+last_call_time = 0  # 記錄上次 API 調用時間
+API_COOLDOWN = 2  # 設定 2 秒冷卻時間
+
+def GPT_response(text):
+    global last_call_time
+    
+    # 設定最短間隔，避免連續請求
+    if time.time() - last_call_time < API_COOLDOWN:
+        return "請稍後再試！"
+    
+    model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(text) else "gpt-4o"
+    
     try:
         response = openai.ChatCompletion.create(
             model=model,
@@ -42,14 +52,13 @@ def GPT_response(text):
             max_tokens=500,
             timeout=30
         )
-
-        answer = response["choices"][0]["message"]["content"].strip()
-        return answer
+        
+        last_call_time = time.time()  # 更新最後請求時間
+        return response["choices"][0]["message"]["content"].strip()
 
     except Exception as e:
         print(traceback.format_exc())
         return "系統錯誤，請稍後再試！"
-        
 
 
 """
