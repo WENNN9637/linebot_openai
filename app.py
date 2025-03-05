@@ -28,7 +28,7 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 last_call_time = 0  # 記錄上次 API 調用時間
 API_COOLDOWN = 5  # 設定 5 秒冷卻時間
 def is_c_language(text):
-    c_keywords = ["#include", "int ", "void ", "printf(", "scanf(", "return", "malloc", "free", "sizeof", "struct ", "typedef ", "->", "::", "main()"]
+    c_keywords = ["c語言", "C語言", "c language", "#include", "int ", "void ", "printf(", "scanf(", "return", "malloc", "free", "sizeof", "struct ", "typedef ", "->", "::", "main()"]
     return any(keyword in text for keyword in c_keywords)
 def GPT_response(text):
     global last_call_time
