@@ -29,7 +29,7 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 def GPT_response(text):
     # 接收回應
     response = openai.ChatCompletion.create(
-        model="gpt-4o", 
+        model="ft:gpt-4o-2024-08-06:personal::B5sbnkYa", 
         messages=[
             {"role": "user", "content": text},
         ],
