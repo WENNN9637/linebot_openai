@@ -31,7 +31,7 @@ def is_c_language(text):
     
 
 last_call_time = 0  # 記錄上次 API 調用時間
-API_COOLDOWN = 2  # 設定 2 秒冷卻時間
+API_COOLDOWN = 5  # 設定 5 秒冷卻時間
 
 def GPT_response(text):
     global last_call_time
@@ -90,16 +90,19 @@ def GPT_response(text):
     answer = response["choices"][0]["message"]["content"]
     return answer
 """
-
-# 監聽所有來自 /callback 的 Post Request
+@app.route("/health", methods=['GET'])
+def health_check():
+    return "OK", 200  # 讓 Render 知道伺服器正常運行，不觸發 OpenAI API
+    
 @app.route("/callback", methods=['POST'])
 def callback():
-    # get X-Line-Signature header value
-    signature = request.headers['X-Line-Signature']
-    # get request body as text
+    signature = request.headers.get('X-Line-Signature')
+    if not signature:
+        abort(403)  # 直接拒絕非 LINE 來源的請求
+    
     body = request.get_data(as_text=True)
     app.logger.info("Request body: " + body)
-    # handle webhook body
+
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
@@ -107,18 +110,29 @@ def callback():
     return 'OK'
 
 
+
 # 處理訊息
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     msg = event.message.text
+
+    # 記錄用戶的最後請求時間，避免連續觸發
+    user_id = event.source.user_id
+    global last_call_time
+
+    # 5 秒內的重複請求直接忽略
+    if time.time() - last_call_time < 5:
+        line_bot_api.reply_message(event.reply_token, TextSendMessage("請稍後再試！"))
+        return
+    
     try:
         GPT_answer = GPT_response(msg)
         print(GPT_answer)
         line_bot_api.reply_message(event.reply_token, TextSendMessage(GPT_answer))
+        last_call_time = time.time()  # 更新最後請求時間
     except:
         print(traceback.format_exc())
-        line_bot_api.reply_message(event.reply_token, TextSendMessage('你所使用的OPENAI API key額度可能已經超過，請於後台Log內確認錯誤訊息'))
-        
+        line_bot_api.reply_message(event.reply_token, TextSendMessage("系統錯誤，請稍後再試！"))
 
 @handler.add(PostbackEvent)
 def handle_message(event):
