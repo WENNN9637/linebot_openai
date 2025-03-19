@@ -79,13 +79,12 @@ def handle_postback(event):
     print(f"🛠 更新後的 user_mode: {user_mode}")
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
-
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
-    user_text = event.message.text.strip().upper()  # 取得使用者訊息，並轉大寫以確保一致性
+    user_text = event.message.text.strip().upper()  # 轉大寫，確保不受大小寫影響
 
-    # ✅ 使用 Message API 傳送的文字來切換模式
+    # ✅ 定義模式對應
     mode_map = {
         "I": "interactive",
         "C": "constructive",
@@ -93,17 +92,17 @@ def handle_message(event):
         "P": "passive"
     }
 
+    # ✅ 檢查是否是模式切換
     if user_text in mode_map:
         user_mode[user_id] = mode_map[user_text]
-        reply_text = f"已切換至『{mode_map[user_text]} 模式』"
+        reply_text = f"已切換至『{mode_map[user_text]}』模式"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
-        return  # ✅ 回應後結束，避免繼續執行下面的程式碼
+        return  # ✅ 直接回應後結束
 
     # ✅ 確保 user_mode[user_id] 有值，否則預設為 "passive"
     mode = user_mode.get(user_id, "passive")
-    print(f"用戶 {user_id} 的目前模式：{mode}")  # ✅ 確認模式是否讀取成功
 
-    # ✅ 根據不同模式回應不同的訊息
+    # ✅ 根據模式回應不同的訊息
     if mode == "passive":
         response_text = "這是基本資訊：\n" + user_text[:50]
     elif mode == "active":
@@ -116,6 +115,7 @@ def handle_message(event):
         response_text = "未知模式，請重新選擇。"
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
+
 
 
 if __name__ == "__main__":
