@@ -115,7 +115,6 @@ def handle_message(event):
     # **被動模式 (等使用者問問題才回應)**
     if mode == "passive":
         response_text = generate_interactive_response(user_text)  # 無條件使用 AI 生成回應
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
 
 
     # **主動模式 (自動提問)**
