@@ -79,38 +79,44 @@ def handle_postback(event):
     print(f"🛠 更新後的 user_mode: {user_mode}")
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
+import openai
+
+def generate_interactive_question(user_text):
+    """ 使用 OpenAI GPT 產生新的互動問題 """
+    prompt = f"使用者的問題或主題：{user_text}\n\n請根據這個主題，提出一個有啟發性的問題來促進討論。"
+    
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[{"role": "system", "content": "你是一個有智慧的對話助手，會主動提問來促進討論。"},
+                  {"role": "user", "content": prompt}]
+    )
+    
+    return response["choices"][0]["message"]["content"]
+
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
-    user_text = event.message.text.strip().upper()  # 轉大寫，確保不受大小寫影響
+    user_text = event.message.text.strip().upper()
 
-    # ✅ 定義模式對應
-    mode_map = {
-        "I": "interactive",
-        "C": "constructive",
-        "A": "active",
-        "P": "passive"
-    }
+    mode_map = {"I": "interactive", "C": "constructive", "A": "active", "P": "passive"}
 
-    # ✅ 檢查是否是模式切換
     if user_text in mode_map:
         user_mode[user_id] = mode_map[user_text]
         reply_text = f"已切換至『{mode_map[user_text]}』模式"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
-        return  # ✅ 直接回應後結束
+        return  
 
-    # ✅ 確保 user_mode[user_id] 有值，否則預設為 "passive"
     mode = user_mode.get(user_id, "passive")
 
-    # ✅ 根據模式回應不同的訊息
     if mode == "passive":
         response_text = "這是基本資訊：\n" + user_text[:50]
     elif mode == "active":
-        response_text = "這是你的問題，我有個問題給你：\n" + user_text + "\n\n你覺得這跟現實生活有關嗎？"
+        response_text = f"這是你的問題，我有個問題給你：\n{user_text}\n\n你覺得這跟現實生活有關嗎？"
     elif mode == "constructive":
-        response_text = "請先說說你的想法？\n" + user_text + "\n\n然後我們可以一起討論！"
+        response_text = f"請先說說你的想法？\n{user_text}\n\n然後我們可以一起討論！"
     elif mode == "interactive":
-        response_text = "我們來對話！\n\n你問：" + user_text + "\n\n你覺得這個問題有什麼不同的解法？"
+        new_question = generate_interactive_question(user_text)  # ⭐ 生成新問題
+        response_text = f"讓我們來討論！\n\n你的問題：{user_text}\n\n我的問題給你：{new_question}"
     else:
         response_text = "未知模式，請重新選擇。"
 
