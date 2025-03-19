@@ -80,30 +80,43 @@ def handle_postback(event):
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
 
-# ✅ 根據模式回應使用者訊息
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
-    user_text = event.message.text.strip()
+    user_text = event.message.text.strip().upper()  # 取得使用者訊息，並轉大寫以確保一致性
 
-    # ✅ 確保 `user_mode[user_id]` 存在，否則預設為 "passive"
+    # ✅ 使用 Message API 傳送的文字來切換模式
+    mode_map = {
+        "I": "interactive",
+        "C": "constructive",
+        "A": "active",
+        "P": "passive"
+    }
+
+    if user_text in mode_map:
+        user_mode[user_id] = mode_map[user_text]
+        reply_text = f"已切換至『{mode_map[user_text]} 模式』"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
+        return  # ✅ 回應後結束，避免繼續執行下面的程式碼
+
+    # ✅ 確保 user_mode[user_id] 有值，否則預設為 "passive"
     mode = user_mode.get(user_id, "passive")
+    print(f"用戶 {user_id} 的目前模式：{mode}")  # ✅ 確認模式是否讀取成功
 
-    # ✅ 確認模式是否正確讀取
-    print(f"🛠 用戶 {user_id} 的當前模式：{mode}")
-
+    # ✅ 根據不同模式回應不同的訊息
     if mode == "passive":
-        response_text = "📌 這是基本資訊：\n" + user_text[:50]
+        response_text = "這是基本資訊：\n" + user_text[:50]
     elif mode == "active":
-        response_text = f"🤔 這是你的問題，我有個問題給你：\n{user_text}\n\n你覺得這跟現實生活有關嗎？"
+        response_text = "這是你的問題，我有個問題給你：\n" + user_text + "\n\n你覺得這跟現實生活有關嗎？"
     elif mode == "constructive":
-        response_text = f"💡 這是 C 語言相關知識：\n{user_text}\n\n我們可以進一步探討這段程式碼！"
+        response_text = "請先說說你的想法？\n" + user_text + "\n\n然後我們可以一起討論！"
     elif mode == "interactive":
-        response_text = f"🗣️ 我們來對話！\n\n你問：{user_text}\n\n你覺得這個問題有什麼不同的解法？"
+        response_text = "我們來對話！\n\n你問：" + user_text + "\n\n你覺得這個問題有什麼不同的解法？"
     else:
-        response_text = "⚠️ 未知模式，請重新選擇。"
+        response_text = "未知模式，請重新選擇。"
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
+
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
