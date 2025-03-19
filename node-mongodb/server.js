@@ -6,6 +6,31 @@ const bodyParser = require('body-parser');
 const app = express();
 app.use(bodyParser.json());
 
+app.post('/save_message', async (req, res) => {
+    try {
+        console.log("📥 收到請求:", req.body); // ✅ 檢查請求內容
+
+        const { user_id, message_text, message_type } = req.body;
+        if (!user_id || !message_type) {
+            return res.status(400).json({ error: "缺少必要欄位" });
+        }
+
+        const newMessage = new Message({
+            user_id,
+            message_text,
+            message_type
+        });
+
+        await newMessage.save();
+        console.log(`📩 訊息已儲存: ${message_text}`);
+
+        res.status(200).json({ status: "success", message: "Message saved" });
+    } catch (error) {
+        console.error("❌ 儲存訊息失敗:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
+});
+
 // **MongoDB 連線**
 mongoose.connect(process.env.MONGO_URI, { 
     useNewUrlParser: true, 
