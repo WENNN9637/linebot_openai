@@ -3,10 +3,26 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import *
 import os, openai
-import subprocess
+import requests
+import json
 
-# 啟動 Node.js 伺服器
-subprocess.Popen(["node", "server.js"])
+NODE_SERVER_URL = "https://node-mongo-b008.onrender.com/save_message"
+
+def save_message_to_db(user_id, message_text, message_type):
+    payload = {
+        "user_id": user_id,
+        "message_text": message_text,
+        "message_type": message_type
+    }
+    headers = {"Content-Type": "application/json"}
+    
+    response = requests.post(NODE_SERVER_URL, data=json.dumps(payload), headers=headers)
+    
+    if response.status_code == 200:
+        print("✅ 訊息成功存入 MongoDB")
+    else:
+        print("❌ 儲存訊息失敗:", response.text)
+
 
 app = Flask(__name__)
 line_bot_api = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
