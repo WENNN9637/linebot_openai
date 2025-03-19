@@ -114,10 +114,9 @@ def handle_message(event):
 
     # **被動模式 (等使用者問問題才回應)**
     if mode == "passive":
-        if "?" in user_text or len(user_text) > 10:  # 偵測是否是問題
-            response_text = generate_interactive_response(user_text)  # 以對話模式回答
-        else:
-            return  # 什麼都不回應 (靜默模式)
+        response_text = generate_interactive_response(user_text)  # 無條件使用 AI 生成回應
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
+
 
     # **主動模式 (自動提問)**
     elif mode == "active":
