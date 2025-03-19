@@ -34,6 +34,23 @@ def send_welcome(event):
     user_mode[user_id] = "passive"  # 預設模式為被動模式
     send_mode_selection(user_id)
 
+def GPT_response(text):
+    
+    model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(text) else "gpt-4o"
+    print(f"使用的模型: {model}")  # 顯示當下使用的模型 (在後台 Log 中)
+    response = openai.ChatCompletion.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": "你只能使用繁體中文或英文回答。"},
+            {"role": "user", "content": text}
+        ],
+        max_tokens=500,
+        timeout=30
+    )
+        
+    last_call_time = time.time()  # 更新最後請求時間
+    return response["choices"][0]["message"]["content"].strip()
+    
 # 送出學習模式選擇的 Flex Message
 def send_mode_selection(user_id):
     flex_message = FlexSendMessage(
