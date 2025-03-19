@@ -60,7 +60,7 @@ def send_mode_selection(user_id):
 def generate_active_question():
     prompt = "請產生一個具有挑戰性的問題，適合讓學習者思考並回答。問題應該與學習、科技或邏輯思考相關。"
     response = openai.ChatCompletion.create(
-        model="gpt-4",
+        model="gpt-4o",
         messages=[{"role": "system", "content": "你是一個智慧型學習助手，會主動提出有趣的問題來幫助使用者學習。"},
                   {"role": "user", "content": prompt}]
     )
@@ -69,7 +69,7 @@ def generate_active_question():
 # 產生互動式對話
 def generate_interactive_response(user_input):
     response = openai.ChatCompletion.create(
-        model="gpt-4",
+        model="gpt-4o",
         messages=[{"role": "system", "content": "你是一個對話型學習助理，會根據使用者的問題進行互動。"},
                   {"role": "user", "content": user_input}]
     )
@@ -79,7 +79,7 @@ def generate_interactive_response(user_input):
 def generate_constructive_prompt(user_input):
     prompt = f"使用者說：「{user_input}」，請根據這個內容引導使用者提供更具體的想法，例如詢問他們的觀點或細節。"
     response = openai.ChatCompletion.create(
-        model="gpt-4",
+        model="gpt-4o",
         messages=[{"role": "system", "content": "你是一個引導式學習助手，會幫助使用者深入思考。"},
                   {"role": "user", "content": prompt}]
     )
