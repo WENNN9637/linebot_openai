@@ -9,7 +9,7 @@ line_bot_api = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
 handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
-# 紀錄使用者的模式（模擬資料庫）
+# 記錄每位使用者的學習模式
 user_mode = {}
 
 @app.route("/callback", methods=['POST'])
@@ -28,7 +28,7 @@ def callback():
 @handler.add(FollowEvent)
 def send_welcome(event):
     user_id = event.source.user_id
-    user_mode[user_id] = "Passive"
+    user_mode[user_id] = "passive"
     send_mode_selection(user_id)
 
 def send_mode_selection(user_id):
@@ -42,43 +42,56 @@ def send_mode_selection(user_id):
                 "contents": [
                     {"type": "text", "text": "請選擇學習模式", "weight": "bold", "size": "lg"},
                     {"type": "button", "style": "primary", "color": "#1DB446",
-                     "action": {"type": "postback", "label": "互動式 (Interactive)", "data": "mode:Interactive"}},
+                     "action": {"type": "postback", "label": "互動式 (Interactive)", "data": "mode_interactive"}},
                     {"type": "button", "style": "primary", "color": "#FFB74D",
-                     "action": {"type": "postback", "label": "建構式 (Constructive)", "data": "mode:Constructive"}},
+                     "action": {"type": "postback", "label": "建構式 (Constructive)", "data": "mode_constructive"}},
                     {"type": "button", "style": "primary", "color": "#42A5F5",
-                     "action": {"type": "postback", "label": "主動式 (Active)", "data": "mode:Active"}},
+                     "action": {"type": "postback", "label": "主動式 (Active)", "data": "mode_active"}},
                     {"type": "button", "style": "primary", "color": "#9E9E9E",
-                     "action": {"type": "postback", "label": "被動式 (Passive)", "data": "mode:Passive"}}
+                     "action": {"type": "postback", "label": "被動式 (Passive)", "data": "mode_passive"}}
                 ]
             }
         }
     )
     line_bot_api.push_message(user_id, flex_message)
 
-# 處理按鈕回應
+# 處理按鈕回應，切換模式
 @handler.add(PostbackEvent)
 def handle_postback(event):
     user_id = event.source.user_id
     data = event.postback.data
-    if data.startswith("mode:"):
-        mode = data.split(":")[1]
-        user_mode[user_id] = mode
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(f"已切換至 {mode} 模式！"))
+
+    if data == "mode_passive":
+        user_mode[user_id] = "passive"
+        reply_text = "已切換至『被動模式』"
+    elif data == "mode_active":
+        user_mode[user_id] = "active"
+        reply_text = "已切換至『主動模式』"
+    elif data == "mode_constructive":
+        user_mode[user_id] = "constructive"
+        reply_text = "已切換至『建構模式』"
+    elif data == "mode_interactive":
+        user_mode[user_id] = "interactive"
+        reply_text = "已切換至『互動模式』"
+    else:
+        reply_text = "未知的模式，請重新選擇。"
+
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
 
 # 處理文字訊息
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
-    mode = user_mode.get(user_id, "Passive")
+    mode = user_mode.get(user_id, "passive")
     user_text = event.message.text
     
-    if mode == "Passive":
+    if mode == "passive":
         response_text = "這是基本資訊：\n" + user_text[:50]
-    elif mode == "Active":
+    elif mode == "active":
         response_text = "這是你的問題，我有個問題給你：\n" + user_text + "\n\n你覺得這跟現實生活有關嗎？"
-    elif mode == "Constructive":
+    elif mode == "constructive":
         response_text = "請先說說你的想法？\n" + user_text + "\n\n然後我們可以一起討論！"
-    else:  # Interactive
+    else:  # interactive
         response_text = "我們來對話！\n\n你問：" + user_text + "\n\n你覺得這個問題有什麼不同的解法？"
     
     line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
@@ -86,3 +99,4 @@ def handle_message(event):
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
