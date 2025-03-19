@@ -56,46 +56,55 @@ def send_mode_selection(user_id):
     )
     line_bot_api.push_message(user_id, flex_message)
 
+# ✅ 新增處理 Postback 事件的函數
+@handler.add(PostbackEvent)
+def handle_postback(event):
+    user_id = event.source.user_id
+    data = event.postback.data  # 取得按鈕的 data 值
 
+    mode_map = {
+        "mode_passive": "passive",
+        "mode_active": "active",
+        "mode_constructive": "constructive",
+        "mode_interactive": "interactive"
+    }
 
+    if data in mode_map:
+        user_mode[user_id] = mode_map[data]  # ✅ 更新該使用者的模式
+        reply_text = f"✅ 已切換至『{data.replace('mode_', '').capitalize()} 模式』"
+    else:
+        reply_text = "⚠️ 未知的模式，請重新選擇。"
+
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
+
+# ✅ 使用者發送訊息時的回應
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
-    user_text = event.message.text.strip()  # 取得使用者傳送的文字
+    user_text = event.message.text.strip()  # 取得使用者輸入的文字並去掉前後空格
 
-    # ✅ 將模式名稱對應到 mode
-    mode_map = {
-        "被動式 (Passive)": "passive",
-        "主動式 (Active)": "active",
-        "建構式 (Constructive)": "constructive",
-        "互動式 (Interactive)": "interactive"
-    }
-
-    # ✅ 如果用戶點擊的是「模式切換按鈕」，就更新模式
-    if user_text in mode_map:
-        user_mode[user_id] = mode_map[user_text]
-        reply_text = f"已切換至『{user_text}』模式"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
-        return  # ✅ 直接回應後結束，避免繼續執行下面的程式碼
-
-    # ✅ 確保 user_mode[user_id] 有值，否則預設為 "passive"
+    # ✅ 確保 `user_mode[user_id]` 有值，否則預設為 "passive"
     mode = user_mode.get(user_id, "passive")
-    print(f"用戶 {user_id} 的目前模式：{mode}")  # ✅ 確認模式是否讀取成功
+    print(f"🛠 用戶 {user_id} 的目前模式：{mode}")  # ✅ 確認模式是否讀取成功
 
     # ✅ 根據不同模式回應不同的訊息
     if mode == "passive":
-        response_text = "這是基本資訊：\n" + user_text[:50]
+        response_text = "📌 這是基本資訊：\n" + user_text[:50]
+
     elif mode == "active":
-        response_text = "這是你的問題，我有個問題給你：\n" + user_text + "\n\n你覺得這跟現實生活有關嗎？"
+        response_text = f"🤔 這是你的問題，我有個問題給你：\n{user_text}\n\n你覺得這跟現實生活有關嗎？"
+
     elif mode == "constructive":
-        response_text = "請先說說你的想法？\n" + user_text + "\n\n然後我們可以一起討論！"
+        response_text = f"💡 這是 C 語言相關知識：\n{user_text}\n\n我們可以進一步探討這段程式碼！"
+
     elif mode == "interactive":
-        response_text = "我們來對話！\n\n你問：" + user_text + "\n\n你覺得這個問題有什麼不同的解法？"
+        response_text = f"🗣️ 我們來對話！\n\n你問：{user_text}\n\n你覺得這個問題有什麼不同的解法？"
+
     else:
-        response_text = "未知模式，請重新選擇。"
+        response_text = "⚠️ 未知模式，請重新選擇。"
 
+    # ✅ 傳送回應
     line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
-
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
