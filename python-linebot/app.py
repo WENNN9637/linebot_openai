@@ -1,4 +1,4 @@
-from flask import Flask, request, abort
+from flask import Flask, request, abort, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import *
@@ -6,22 +6,29 @@ import os, openai
 import requests
 import json
 
-NODE_SERVER_URL = "https://node-mongo-b008.onrender.com/save_message"
+NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
 
-def save_message_to_db(user_id, message_text, message_type):
-    payload = {
-        "user_id": user_id,
-        "message_text": message_text,
-        "message_type": message_type
-    }
-    headers = {"Content-Type": "application/json"}
-    
-    response = requests.post(NODE_SERVER_URL, data=json.dumps(payload), headers=headers)
-    
-    if response.status_code == 200:
-        print("✅ 訊息成功存入 MongoDB")
-    else:
-        print("❌ 儲存訊息失敗:", response.text)
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    data = request.json  # 取得 LINE 傳來的訊息
+    if not data or "events" not in data:
+        return jsonify({"error": "Invalid data"}), 400
+
+    events = data["events"]
+    for event in events:
+        if event["type"] == "message":
+            message_data = {
+                "user_id": event["source"]["userId"],
+                "message_text": event["message"].get("text", ""),
+                "message_type": event["message"]["type"],
+            }
+            
+            # ✅ 發送訊息到 Node.js 儲存
+            response = requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data)
+            print("📤 發送至 Node.js:", response.json())
+
+    return jsonify({"status": "success"}), 200
+
 
 
 app = Flask(__name__)
