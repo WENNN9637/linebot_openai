@@ -9,7 +9,7 @@ line_bot_api = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
 handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
-# 記錄每位使用者的學習模式
+# 紀錄使用者的學習模式
 user_mode = {}
 
 @app.route("/callback", methods=['POST'])
@@ -24,13 +24,14 @@ def callback():
         abort(400)
     return 'OK'
 
-# 回應 Flex Message 按鈕
+# 當用戶加入好友時，發送學習模式選單
 @handler.add(FollowEvent)
 def send_welcome(event):
     user_id = event.source.user_id
-    user_mode[user_id] = "passive"
+    user_mode[user_id] = "passive"  # ✅ 設定新用戶的預設模式
     send_mode_selection(user_id)
 
+# 送出學習模式選擇的 Flex Message
 def send_mode_selection(user_id):
     flex_message = FlexSendMessage(
         alt_text="請選擇學習模式",
@@ -55,48 +56,49 @@ def send_mode_selection(user_id):
     )
     line_bot_api.push_message(user_id, flex_message)
 
-# 處理按鈕回應，切換模式
+# ✅ 處理按鈕點擊事件，切換模式
 @handler.add(PostbackEvent)
 def handle_postback(event):
     user_id = event.source.user_id
-    data = event.postback.data
+    data = event.postback.data  # 取得按鈕的 data 值
 
-    if data == "mode_passive":
-        user_mode[user_id] = "passive"
-        reply_text = "已切換至『被動模式』"
-    elif data == "mode_active":
-        user_mode[user_id] = "active"
-        reply_text = "已切換至『主動模式』"
-    elif data == "mode_constructive":
-        user_mode[user_id] = "constructive"
-        reply_text = "已切換至『建構模式』"
-    elif data == "mode_interactive":
-        user_mode[user_id] = "interactive"
-        reply_text = "已切換至『互動模式』"
+    mode_map = {
+        "mode_passive": "passive",
+        "mode_active": "active",
+        "mode_constructive": "constructive",
+        "mode_interactive": "interactive"
+    }
+
+    if data in mode_map:
+        user_mode[user_id] = mode_map[data]  # ✅ 更新該使用者的模式
+        reply_text = f"已切換至『{mode_map[data]} 模式』"
     else:
         reply_text = "未知的模式，請重新選擇。"
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
 
-# 處理文字訊息
+# ✅ 處理使用者的訊息，根據模式回應不同內容
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
-    mode = user_mode.get(user_id, "passive")
     user_text = event.message.text
-    
+
+    # ✅ 確保 user_mode[user_id] 有值，否則預設為 "passive"
+    mode = user_mode.get(user_id, "passive")
+
     if mode == "passive":
         response_text = "這是基本資訊：\n" + user_text[:50]
     elif mode == "active":
         response_text = "這是你的問題，我有個問題給你：\n" + user_text + "\n\n你覺得這跟現實生活有關嗎？"
     elif mode == "constructive":
         response_text = "請先說說你的想法？\n" + user_text + "\n\n然後我們可以一起討論！"
-    else:  # interactive
+    elif mode == "interactive":
         response_text = "我們來對話！\n\n你問：" + user_text + "\n\n你覺得這個問題有什麼不同的解法？"
-    
+    else:
+        response_text = "未知模式，請重新選擇。"
+
     line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
