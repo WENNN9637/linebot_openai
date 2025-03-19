@@ -2,17 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
-const { Client, middleware } = require('@line/bot-sdk');
 
 const app = express();
 app.use(bodyParser.json());
-
-// **LINE Bot 設定**
-const lineConfig = {
-    channelAccessToken: process.env.LINE_ACCESS_TOKEN,
-    channelSecret: process.env.LINE_CHANNEL_SECRET
-};
-const lineClient = new Client(lineConfig);
 
 // **MongoDB 連線**
 mongoose.connect(process.env.MONGO_URI, { 
@@ -34,31 +26,23 @@ const messageSchema = new mongoose.Schema({
 });
 const Message = mongoose.model("Message", messageSchema);
 
-// **處理 LINE Webhook**
-app.post('/webhook', middleware(lineConfig), async (req, res) => {
+// **API 來儲存訊息（Python Web Service 會呼叫這個 API）**
+app.post('/save_message', async (req, res) => {
     try {
-        const events = req.body.events;
-        for (const event of events) {
-            if (event.type === 'message' && event.message) {
-                const newMessage = new Message({
-                    user_id: event.source?.userId || "unknown",
-                    message_text: event.message.text || "",
-                    message_type: event.message.type,
-                });
+        const { user_id, message_text, message_type } = req.body;
 
-                await newMessage.save();
-                console.log(`📩 訊息已儲存: ${event.message.text}`);
+        const newMessage = new Message({
+            user_id,
+            message_text,
+            message_type
+        });
 
-                // **回覆使用者**
-                await lineClient.replyMessage(event.replyToken, {
-                    type: 'text',
-                    text: `你剛剛說: ${event.message.text}`
-                });
-            }
-        }
-        res.sendStatus(200);
+        await newMessage.save();
+        console.log(`📩 訊息已儲存: ${message_text}`);
+
+        res.status(200).json({ status: "success", message: "Message saved" });
     } catch (error) {
-        console.error("❌ 處理 Webhook 失敗:", error);
+        console.error("❌ 儲存訊息失敗:", error);
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
