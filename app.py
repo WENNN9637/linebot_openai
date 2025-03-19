@@ -3,6 +3,10 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import *
 import os, openai
+import subprocess
+
+# 啟動 Node.js 伺服器
+subprocess.Popen(["node", "server.js"])
 
 app = Flask(__name__)
 line_bot_api = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
