@@ -12,7 +12,10 @@ openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # 紀錄使用者的學習模式
 user_mode = {}
-
+@app.route("/health", methods=['GET'])
+def health_check():
+    return "OK", 200  # 讓 Render 知道伺服器正常運行，不觸發 OpenAI API
+    
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature')
