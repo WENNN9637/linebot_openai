@@ -56,38 +56,33 @@ def send_mode_selection(user_id):
     )
     line_bot_api.push_message(user_id, flex_message)
 
-# ✅ 處理按鈕點擊事件，切換模式
-@handler.add(PostbackEvent)
-def handle_postback(event):
-    user_id = event.source.user_id
-    data = event.postback.data  # 取得按鈕的 data 值
 
-    mode_map = {
-        "mode_passive": "passive",
-        "mode_active": "active",
-        "mode_constructive": "constructive",
-        "mode_interactive": "interactive"
-    }
 
-    if data in mode_map:
-        user_mode[user_id] = mode_map[data]  # ✅ 更新該使用者的模式
-        print(f"用戶 {user_id} 的模式變更為：{user_mode[user_id]}")  # ✅ 確認模式變更
-        reply_text = f"已切換至『{mode_map[data]} 模式』"
-    else:
-        reply_text = "未知的模式，請重新選擇。"
-
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
-
-# ✅ 處理使用者的訊息，根據模式回應不同內容
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
-    user_text = event.message.text
+    user_text = event.message.text.strip()  # 取得使用者傳送的文字
+
+    # ✅ 將模式名稱對應到 mode
+    mode_map = {
+        "被動式 (Passive)": "passive",
+        "主動式 (Active)": "active",
+        "建構式 (Constructive)": "constructive",
+        "互動式 (Interactive)": "interactive"
+    }
+
+    # ✅ 如果用戶點擊的是「模式切換按鈕」，就更新模式
+    if user_text in mode_map:
+        user_mode[user_id] = mode_map[user_text]
+        reply_text = f"已切換至『{user_text}』模式"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
+        return  # ✅ 直接回應後結束，避免繼續執行下面的程式碼
 
     # ✅ 確保 user_mode[user_id] 有值，否則預設為 "passive"
     mode = user_mode.get(user_id, "passive")
     print(f"用戶 {user_id} 的目前模式：{mode}")  # ✅ 確認模式是否讀取成功
 
+    # ✅ 根據不同模式回應不同的訊息
     if mode == "passive":
         response_text = "這是基本資訊：\n" + user_text[:50]
     elif mode == "active":
@@ -100,6 +95,7 @@ def handle_message(event):
         response_text = "未知模式，請重新選擇。"
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
+
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
