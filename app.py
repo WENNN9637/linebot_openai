@@ -2,7 +2,7 @@ from flask import Flask, request, abort
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import *
-import os, time, openai
+import os, openai
 
 app = Flask(__name__)
 line_bot_api = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
@@ -71,6 +71,7 @@ def handle_postback(event):
 
     if data in mode_map:
         user_mode[user_id] = mode_map[data]  # ✅ 更新該使用者的模式
+        print(f"用戶 {user_id} 的模式變更為：{user_mode[user_id]}")  # ✅ 確認模式變更
         reply_text = f"已切換至『{mode_map[data]} 模式』"
     else:
         reply_text = "未知的模式，請重新選擇。"
@@ -85,6 +86,7 @@ def handle_message(event):
 
     # ✅ 確保 user_mode[user_id] 有值，否則預設為 "passive"
     mode = user_mode.get(user_id, "passive")
+    print(f"用戶 {user_id} 的目前模式：{mode}")  # ✅ 確認模式是否讀取成功
 
     if mode == "passive":
         response_text = "這是基本資訊：\n" + user_text[:50]
