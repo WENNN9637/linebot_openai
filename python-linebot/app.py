@@ -6,6 +6,11 @@ import os, openai
 import requests
 import json
 
+app = Flask(__name__)
+line_bot_api = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
+handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
+openai.api_key = os.getenv('OPENAI_API_KEY')
+
 NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
 
 @app.route("/webhook", methods=["POST"])
@@ -29,12 +34,6 @@ def webhook():
 
     return jsonify({"status": "success"}), 200
 
-
-
-app = Flask(__name__)
-line_bot_api = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
-handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
-openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # 紀錄使用者的學習模式
 user_mode = {}
