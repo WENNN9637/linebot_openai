@@ -6,10 +6,11 @@ const bodyParser = require('body-parser');
 const app = express();
 app.use(bodyParser.json());
 
-// **MongoDB 連線**
 mongoose.connect(process.env.MONGO_URI, { 
     useNewUrlParser: true, 
-    useUnifiedTopology: true 
+    useUnifiedTopology: true,
+    keepAlive: true,        // ✅ 保持連線
+    keepAliveInitialDelay: 300000 // ✅ 每 5 分鐘發送 Keep-Alive
 })
     .then(() => console.log("✅ MongoDB 連線成功"))
     .catch(err => {
