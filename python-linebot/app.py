@@ -19,7 +19,7 @@ data = {
 
 NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
 
-response = requests.post(url, json=data)
+response = requests.post(NODE_SERVER_URL, json=data)
 print("🔹 送出請求到 Node.js API:", response.status_code, response.text)
 
 @app.route("/webhook", methods=["POST"])
