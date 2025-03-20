@@ -227,7 +227,7 @@ def handle_message(event):
     # **📌 把歷史紀錄傳給 AI，讓它「記住」**
     messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
     for msg in conversation[-5:]:  # 只取最近 5 則訊息
-        messages.append({"role": "user", "content": msg["user_text"]})
+        messages.append({"role": "user", "content": msg["message_text"]})
         messages.append({"role": "assistant", "content": msg["bot_response"]})
 
     messages.append({"role": "user", "content": user_text})  # 加入使用者最新訊息
