@@ -1,9 +1,10 @@
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
+const bodyParser = require('body-parser');
 
 const app = express();
-app.use(express.json());  // ✅ 使用 Express 內建的 JSON 解析
+app.use(bodyParser.json());
 
 // **連接 MongoDB**
 mongoose.connect(process.env.MONGO_URI, { 
