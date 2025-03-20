@@ -23,37 +23,6 @@ NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
 response = requests.post(f"{NODE_SERVER_URL}/save_message", json=data)
 print("🔹 送出請求到 Node.js API:", response.status_code, response.text)
 
-@app.route("/webhook", methods=["POST"])
-def webhook():
-    data = request.json  # 取得 LINE 傳來的訊息
-    print("📥 收到 LINE Webhook:", data) 
-    if not data or "events" not in data:
-        return jsonify({"error": "Invalid data"}), 400
-
-    events = data["events"]
-    for event in events:
-        if event["type"] == "message":
-            user_id = event["source"].get("userId", None)
-            message_text = event["message"].get("text", None)
-            message_type = event["message"].get("type", None)
-
-            if not user_id or not message_text:  # 任何一個是 None，代表資料不完整
-                print("❌ 錯誤: `message_data` 缺少必要欄位！")
-                continue
-
-            message_data = {
-                "user_id": user_id,
-                "message_text": message_text,
-                "message_type": message_type
-            }
-
-            print("📩 LINE 傳來的資料:", message_data)  # 🔍 確認資料格式
-
-            # ✅ 發送訊息到 Node.js 儲存
-            response = requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data)
-            print("📤 發送至 Node.js:", response.status_code, response.text)
-
-    return jsonify({"status": "success"}), 200
 """
 
 # 紀錄使用者的學習模式
@@ -176,7 +145,7 @@ def generate_constructive_prompt(user_input):
                   {"role": "user", "content": prompt}]
     )
     return response["choices"][0]["message"]["content"]
-
+"""
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
@@ -225,6 +194,83 @@ def handle_message(event):
         response_text = "未知模式，請重新選擇。"
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
+"""
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    user_id = event.source.user_id
+    user_text = event.message.text.strip()
+
+    print(f"💬 收到來自 {user_id} 的訊息: {user_text}")
+
+    # **📌 檢查是否是模式切換指令**
+    mode_map = {
+        "mode_passive": "passive",
+        "mode_active": "active",
+        "mode_constructive": "constructive",
+        "mode_interactive": "interactive"
+    }
+
+    if user_text in mode_map:
+        user_mode[user_id] = mode_map[user_text]
+        reply_text = f"已切換至『{user_text.replace('mode_', '').capitalize()}』模式"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
+        return
+
+    # **📌 取得使用者當前模式，預設為被動模式**
+    mode = user_mode.get(user_id, "passive")
+    print(f"🛠 用戶 {user_id} 的目前模式：{mode}")
+
+    # **📌 先從 MongoDB 讀取歷史紀錄**
+    history = requests.get(f"{NODE_SERVER_URL}/get_history", params={"user_id": user_id}).json()
+    conversation = history.get("messages", [])
+
+    # **📌 把歷史紀錄傳給 AI，讓它「記住」**
+    messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
+    for msg in conversation[-5:]:  # 只取最近 5 則訊息
+        messages.append({"role": "user", "content": msg["user_text"]})
+        messages.append({"role": "assistant", "content": msg["bot_response"]})
+
+    messages.append({"role": "user", "content": user_text})  # 加入使用者最新訊息
+
+    # **📌 根據模式來選擇 AI 互動方式**
+    if mode == "passive":
+        response_text = generate_interactive_response(user_text)  # **被動模式 (只回應使用者問題)**
+
+    elif mode == "active":
+        new_question = generate_active_question()  # **主動模式 (自動提問)**
+        response_text = f"來挑戰一下吧！\n\n{new_question}"
+
+    elif mode == "constructive":
+        if len(user_text) < 10:
+            response_text = generate_constructive_prompt(user_text)  # **建構模式 (引導式對話)**
+        else:
+            response_text = f"你剛剛提到：「{user_text}」，這很有趣！我們來深入討論一下，請問你的具體想法是什麼？"
+
+    elif mode == "interactive":
+        response_text = generate_interactive_response(user_text)  # **互動模式 (雙向對話)**
+
+    else:
+        response_text = "未知模式，請重新選擇。"
+
+    # **📌 呼叫 AI 生成回應 (有記憶功能)**
+    response = openai.ChatCompletion.create(
+        model="gpt-4o",
+        messages=messages
+    )
+    bot_reply = response["choices"][0]["message"]["content"].strip()
+
+    # **📌 回應用戶**
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(bot_reply))
+
+    # **📌 儲存對話紀錄**
+    save_data = {
+        "user_id": user_id,
+        "user_text": user_text,
+        "bot_response": bot_reply
+    }
+    requests.post(f"{NODE_SERVER_URL}/save_message", json=save_data)
+
+    print(f"📝 記錄對話: {save_data}")
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
