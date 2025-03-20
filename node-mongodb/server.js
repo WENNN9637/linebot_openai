@@ -39,17 +39,18 @@ app.post("/save_message", async (req, res) => {
 
     const { user_id, message_text, message_type, bot_response } = req.body;
 
-    if (!user_id || !message_text) {
-        console.log("❌ 缺少 user_id 或 message_text");
+    // ✅ **確保 `bot_response` 存在才存入**
+    if (!user_id || !message_text || !bot_response) {
+        console.log("❌ 缺少必要資料 (user_id, message_text, 或 bot_response)");
         return res.status(400).json({ error: "Invalid data" });
     }
 
     try {
         const message = new Message({
-            user_id: user_id,
-            message_text: message_text,
-            bot_response: bot_response || "", // ✅ 確保有 bot_response
-            message_type: message_type || "unknown", // ✅ 直接使用傳入的 message_type
+            user_id,
+            message_text,
+            bot_response,
+            message_type,
             timestamp: new Date()
         });
         await message.save();
@@ -60,7 +61,6 @@ app.post("/save_message", async (req, res) => {
         res.status(500).json({ error: "Database error" });
     }
 });
-
 
 // **API：取得使用者的歷史訊息**
 app.get("/get_history", async (req, res) => {
