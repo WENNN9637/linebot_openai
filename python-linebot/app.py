@@ -137,9 +137,9 @@ def handle_message(event):
 
     messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
     for msg in history.get("messages", [])[-10:]:  # 取最近 10 筆對話
-    if msg.get("message_text") and msg.get("bot_response"):  # 確保對話完整
-        messages.append({"role": "user", "content": msg["message_text"]})
-        messages.append({"role": "assistant", "content": msg["bot_response"]})
+        if msg.get("message_text") and msg.get("bot_response"):  # 確保對話完整
+            messages.append({"role": "user", "content": msg["message_text"]})
+            messages.append({"role": "assistant", "content": msg["bot_response"]})
 
     messages.append({"role": "user", "content": user_text})  # 加入最新問題
 
