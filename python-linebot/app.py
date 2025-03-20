@@ -27,11 +27,9 @@ def load_history(user_id):
     url = f"{NODE_SERVER_URL}/get_history"
     try:
         response = requests.get(url, params={"user_id": user_id}, timeout=10)
-        response.raise_for_status()  # 檢查 HTTP 錯誤
-        return response.json()  # 確保成功解析 JSON
-    except requests.exceptions.JSONDecodeError:
-        print("⚠️ API 回應非 JSON，回傳空列表")
-        return {"messages": []}
+        response.raise_for_status()  # 確保 API 回應 200 OK
+        data = response.json()
+        return data if "messages" in data else {"messages": []}
     except requests.exceptions.RequestException as e:
         print(f"❌ API 讀取失敗: {e}")
         return {"messages": []}
@@ -84,16 +82,16 @@ def is_c_language(text):
     c_keywords = ["C", "c", "c語言", "C語言", "c language", "C language", "c programming", "C programming", "#include", "int ", "void ", "printf(", "scanf(", "return", "malloc", "free", "sizeof", "struct ", "typedef ", "->", "::", "main()"]
     return any(keyword in text for keyword in c_keywords)
 
-def GPT_response(text):
-    model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(text) else "gpt-4o"
+def GPT_response(messages):
+    model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(messages[-1]["content"]) else "gpt-4o"
     print(f"使用模型: {model}")
+
+    # 直接將 system 訊息加進 messages
+    messages.insert(0, {"role": "system", "content": "你只能使用繁體中文或英文回答。"})
 
     response = openai.ChatCompletion.create(
         model=model,
-        messages=[
-            {"role": "system", "content": "你只能使用繁體中文或英文回答。"},
-            {"role": "user", "content": text}
-        ],
+        messages=messages,  # ✅ 正確的格式，傳遞完整的歷史對話
         max_tokens=500,
         timeout=30
     )
@@ -138,11 +136,12 @@ def handle_message(event):
     history = load_history(user_id)
 
     messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
-    for msg in history.get("messages", [])[-5:]:
-        messages.append({"role": "user", "content": msg.get("message_text", "")})
-        messages.append({"role": "assistant", "content": msg.get("bot_response", "")})
+    for msg in history.get("messages", [])[-10:]:  # 取最近 10 筆對話
+    if msg.get("message_text") and msg.get("bot_response"):  # 確保對話完整
+        messages.append({"role": "user", "content": msg["message_text"]})
+        messages.append({"role": "assistant", "content": msg["bot_response"]})
 
-    messages.append({"role": "user", "content": user_text})
+    messages.append({"role": "user", "content": user_text})  # 加入最新問題
 
     response_text = GPT_response(user_text)
 
