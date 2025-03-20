@@ -153,7 +153,8 @@ def handle_message(event):
         "user_id": user_id,
         "message_text": user_text,
         "bot_response": response_text,
-        "message_type": "text"
+        "message_type": "text",
+        "timestamp": time.strftime('%Y-%m-%d %H:%M:%S')  # 🕒 確保時間格式一致
     }
 
     try:
