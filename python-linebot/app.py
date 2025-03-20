@@ -148,19 +148,22 @@ def handle_message(event):
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
 
-    # ✅ 儲存對話到 MongoDB
-    message_data = {
-        "user_id": user_id,
-        "message_text": user_text,
-        "bot_response": response_text,
-        "message_type": "text",
-        "timestamp": time.strftime('%Y-%m-%d %H:%M:%S')  # 🕒 確保時間格式一致
-    }
-
-    try:
-        requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data, timeout=10)
-    except requests.exceptions.RequestException as e:
-        print(f"❌ 儲存對話失敗: {e}")
+    # ✅ 只有 `bot_response` 存在時才發送到 Node.js
+    if response_text.strip():  
+        message_data = {
+            "user_id": user_id,
+            "message_text": user_text,
+            "bot_response": response_text,
+            "message_type": "text"
+        }
+    
+        try:
+            requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data, timeout=10)
+            print(f"✅ 成功儲存對話: {message_data}")
+        except requests.exceptions.RequestException as e:
+            print(f"❌ 儲存對話失敗: {e}")
+    else:
+        print("⚠️ `bot_response` 為空，跳過儲存")
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
