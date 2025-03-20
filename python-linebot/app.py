@@ -262,16 +262,20 @@ def handle_message(event):
     # **📌 回應用戶**
     line_bot_api.reply_message(event.reply_token, TextSendMessage(bot_reply))
 
-    # **📌 儲存對話紀錄**
-    save_data = {
+    # **📌 修正 message_data 內容 (符合 MongoDB Schema)**
+    message_data = {
         "user_id": str(user_id),  # 確保是字串
-        "user_text": user_text.strip(),  # 避免多餘空格
-        "bot_response": bot_reply.strip()  # 避免多餘空格
+        "message_text": user_text.strip(),  # 避免多餘空格
+        "bot_response": bot_reply.strip(),  # 避免多餘空格
+        "message_type": "text",  # **這裡應該確保 message_type 一致**
+        "timestamp": str(int(time.time() * 1000))  # 可選: 儲存 UNIX 時間戳
     }
+
+    # **📌 確保儲存對話紀錄**
     try:
-        response = requests.post(f"{NODE_SERVER_URL}/save_message", json=save_data)
+        response = requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data)
         response.raise_for_status()  # 若有錯誤，會拋出 Exception
-        print(f"✅ 成功儲存對話: {save_data}")
+        print(f"✅ 成功儲存對話: {message_data}")
     
     except requests.exceptions.RequestException as e:
         print(f"❌ 錯誤: 無法儲存對話 - {e}")
