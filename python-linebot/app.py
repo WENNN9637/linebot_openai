@@ -11,7 +11,16 @@ line_bot_api = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
 handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
+data = {
+    "user_id": "U123456789",
+    "message_text": "Hello from Python",
+    "message_type": "text"
+}
+
 NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
+
+response = requests.post(url, json=data)
+print("🔹 送出請求到 Node.js API:", response.status_code, response.text)
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
