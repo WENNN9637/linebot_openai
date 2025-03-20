@@ -264,13 +264,17 @@ def handle_message(event):
 
     # **📌 儲存對話紀錄**
     save_data = {
-        "user_id": user_id,
-        "user_text": user_text,
-        "bot_response": bot_reply
+        "user_id": str(user_id),  # 確保是字串
+        "user_text": user_text.strip(),  # 避免多餘空格
+        "bot_response": bot_reply.strip()  # 避免多餘空格
     }
-    requests.post(f"{NODE_SERVER_URL}/save_message", json=save_data)
-
-    print(f"📝 記錄對話: {save_data}")
+    try:
+        response = requests.post(f"{NODE_SERVER_URL}/save_message", json=save_data)
+        response.raise_for_status()  # 若有錯誤，會拋出 Exception
+        print(f"✅ 成功儲存對話: {save_data}")
+    
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 錯誤: 無法儲存對話 - {e}")
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
