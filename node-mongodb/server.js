@@ -6,6 +6,11 @@ const bodyParser = require('body-parser');
 const app = express();
 app.use(bodyParser.json());
 
+mongoose.connection.once('open', () => {
+    console.log("✅ 連線的資料庫:", mongoose.connection.name);
+    console.log("✅ 連線的 Collections:", Object.keys(mongoose.connection.collections));
+});
+
 mongoose.connect(process.env.MONGO_URI, { 
     useNewUrlParser: true, 
     useUnifiedTopology: true,
