@@ -83,15 +83,20 @@ def is_c_language(text):
     return any(keyword in text for keyword in c_keywords)
 
 def GPT_response(messages):
-    model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(messages[-1]["content"]) else "gpt-4o"
-    print(f"使用模型: {model}")
+    if not isinstance(messages, list) or len(messages) == 0:
+        raise ValueError("messages 必須是一個包含字典的列表")
 
-    # 直接將 system 訊息加進 messages
-    messages.insert(0, {"role": "system", "content": "你只能使用繁體中文或英文回答。"})
+    # 確保 system 訊息只加入一次
+    if messages[0].get("role") != "system":
+        messages.insert(0, {"role": "system", "content": "你只能使用繁體中文或英文回答。"})
+
+    model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(messages[-1].get("content", "")) else "gpt-4o"
+    
+    print(f"使用模型: {model}")
 
     response = openai.ChatCompletion.create(
         model=model,
-        messages=messages,  # ✅ 正確的格式，傳遞完整的歷史對話
+        messages=messages,  
         max_tokens=500,
         timeout=30
     )
