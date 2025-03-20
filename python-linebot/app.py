@@ -33,14 +33,24 @@ def webhook():
     events = data["events"]
     for event in events:
         if event["type"] == "message":
+            user_id = event["source"].get("userId", None)
+            message_text = event["message"].get("text", None)
+            message_type = event["message"].get("type", None)
+
+            if not user_id or not message_text:  # 任何一個是 None，代表資料不完整
+                print("❌ 錯誤: `message_data` 缺少必要欄位！")
+                continue
+
             message_data = {
-                "user_id": event["source"].get("userId", "Unknown"),  # 預設值 "Unknown"
-                "message_text": event["message"].get("text", ""),  # 預設空字串
-                "message_type": event["message"].get("type", "unknown")  # 預設 "unknown"
+                "user_id": user_id,
+                "message_text": message_text,
+                "message_type": message_type
             }
-            print("📩 LINE 傳來的資料:", message_data)  # 🔍 檢查資料是否正確
+
+            print("📩 LINE 傳來的資料:", message_data)  # 🔍 確認資料格式
+
             # ✅ 發送訊息到 Node.js 儲存
-            response = requests.post(f"{NODE_SERVER_URL}/save_message", json=json.loads(json.dumps(message_data)))
+            response = requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data)
             print("📤 發送至 Node.js:", response.status_code, response.text)
 
     return jsonify({"status": "success"}), 200
