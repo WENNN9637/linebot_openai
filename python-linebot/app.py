@@ -26,6 +26,7 @@ print("🔹 送出請求到 Node.js API:", response.status_code, response.text)
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.json  # 取得 LINE 傳來的訊息
+    print("📥 收到 LINE Webhook:", data) 
     if not data or "events" not in data:
         return jsonify({"error": "Invalid data"}), 400
 
@@ -33,13 +34,13 @@ def webhook():
     for event in events:
         if event["type"] == "message":
             message_data = {
-                "user_id": event["source"]["userId"],
-                "message_text": event["message"].get("text", ""),
-                "message_type": event["message"]["type"],
+                "user_id": event["source"].get("userId", "Unknown"),  # 預設值 "Unknown"
+                "message_text": event["message"].get("text", ""),  # 預設空字串
+                "message_type": event["message"].get("type", "unknown")  # 預設 "unknown"
             }
             print("📩 LINE 傳來的資料:", message_data)  # 🔍 檢查資料是否正確
             # ✅ 發送訊息到 Node.js 儲存
-            response = requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data)
+            response = requests.post(f"{NODE_SERVER_URL}/save_message", json=json.loads(json.dumps(message_data))
             print("📤 發送至 Node.js:", response.status_code, response.text)
 
     return jsonify({"status": "success"}), 200
