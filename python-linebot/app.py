@@ -11,17 +11,18 @@ line_bot_api = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
 handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
 openai.api_key = os.getenv('OPENAI_API_KEY')
 
-data = {
+"""data = {
     "user_id": "U123456789",
     "message_text": "Hello from Python",
     "message_type": "text"
-}
+}"""
 
 NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
 
+"""
 response = requests.post(f"{NODE_SERVER_URL}/save_message", json=data)
 print("🔹 送出請求到 Node.js API:", response.status_code, response.text)
-
+"""
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.json  # 取得 LINE 傳來的訊息
@@ -36,10 +37,10 @@ def webhook():
                 "message_text": event["message"].get("text", ""),
                 "message_type": event["message"]["type"],
             }
-            
+            print("📩 LINE 傳來的資料:", message_data)  # 🔍 檢查資料是否正確
             # ✅ 發送訊息到 Node.js 儲存
             response = requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data)
-            print("📤 發送至 Node.js:", response.status_code, response.text, response.json)
+            print("📤 發送至 Node.js:", response.status_code, response.text)
 
     return jsonify({"status": "success"}), 200
 
