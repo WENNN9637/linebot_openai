@@ -39,7 +39,7 @@ def webhook():
             
             # ✅ 發送訊息到 Node.js 儲存
             response = requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data)
-            print("📤 發送至 Node.js:", response.json())
+            print("📤 發送至 Node.js:", response.status_code, response.text, response.json)
 
     return jsonify({"status": "success"}), 200
 
