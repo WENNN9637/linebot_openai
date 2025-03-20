@@ -22,7 +22,7 @@ NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
 """
 response = requests.post(f"{NODE_SERVER_URL}/save_message", json=data)
 print("🔹 送出請求到 Node.js API:", response.status_code, response.text)
-"""
+
 @app.route("/webhook", methods=["POST"])
 def webhook():
     data = request.json  # 取得 LINE 傳來的訊息
@@ -54,7 +54,7 @@ def webhook():
             print("📤 發送至 Node.js:", response.status_code, response.text)
 
     return jsonify({"status": "success"}), 200
-
+"""
 
 # 紀錄使用者的學習模式
 user_mode = {}
@@ -67,12 +67,37 @@ def callback():
     signature = request.headers.get('X-Line-Signature')
     if not signature:
         abort(403)
+
     body = request.get_data(as_text=True)
+    print("📥 收到 LINE Webhook:", body)  # 🔍 紀錄收到的 LINE 資料
+
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
+        print("❌ LINE 簽名驗證失敗")
         abort(400)
+
+    # **解析 JSON，將訊息存入 Node.js**
+    data = request.json  
+    if not data or "events" not in data:
+        return jsonify({"error": "Invalid data"}), 400
+
+    events = data["events"]
+    for event in events:
+        if event["type"] == "message":
+            message_data = {
+                "user_id": event["source"].get("userId", "Unknown"),
+                "message_text": event["message"].get("text", ""),
+                "message_type": event["message"].get("type", "unknown")
+            }
+            print("📩 LINE 傳來的資料:", message_data)
+
+            # ✅ 傳送訊息到 Node.js 儲存
+            response = requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data)
+            print("📤 發送至 Node.js:", response.status_code, response.text)
+
     return 'OK'
+
 
 # 當用戶加入好友時，發送學習模式選單
 @handler.add(FollowEvent)
