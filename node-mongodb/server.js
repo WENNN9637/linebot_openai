@@ -33,30 +33,30 @@ const messageSchema = new mongoose.Schema({
 const Message = mongoose.model("Message", messageSchema);
 
 // **API 來儲存訊息（Python Web Service 會呼叫這個 API）**
-app.post('/save_message', async (req, res) => {
+app.post("/save_message", async (req, res) => {
+    console.log("📥 收到的 message_data:", req.body); // 🔍 檢查傳入的 JSON
+
+    if (!req.body.user_id || !req.body.message_text) {
+        console.log("❌ 缺少 user_id 或 message_text");
+        return res.status(400).json({ error: "Invalid data" });
+    }
+
     try {
-        console.log("📥 收到請求:", req.body); // ✅ 確保有收到請求
-
-        const { user_id, message_text, message_type } = req.body;
-        if (!user_id || !message_type) {
-            return res.status(400).json({ error: "缺少必要欄位" });
-        }
-
-        const newMessage = new Message({
-            user_id,
-            message_text,
-            message_type
+        const message = new Message({
+            user_id: req.body.user_id,
+            message_text: req.body.message_text,
+            message_type: req.body.message_type,
+            timestamp: new Date()
         });
-
-        await newMessage.save();
-        console.log(`📩 訊息已成功存入 MongoDB:`, newMessage);
-
-        res.status(200).json({ status: "success", message: "Message saved" });
-    } catch (error) {
-        console.error("❌ 儲存訊息失敗:", error);
-        res.status(500).json({ error: "Internal Server Error" });
+        await message.save();
+        console.log("✅ 成功存入 MongoDB");
+        res.json({ status: "success", message: "Message saved" });
+    } catch (err) {
+        console.error("❌ MongoDB 存入錯誤:", err);
+        res.status(500).json({ error: "Database error" });
     }
 });
+
 
 // **啟動伺服器**
 const PORT = process.env.PORT || 3000;
