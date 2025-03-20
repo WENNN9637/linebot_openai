@@ -22,6 +22,20 @@ user_mode = {}
 def health_check():
     return "OK", 200
 
+# ✅ 加入安全的歷史紀錄讀取函式
+def load_history(user_id):
+    url = f"{NODE_SERVER_URL}/get_history"
+    try:
+        response = requests.get(url, params={"user_id": user_id}, timeout=10)
+        response.raise_for_status()  # 檢查 HTTP 錯誤
+        return response.json()  # 確保成功解析 JSON
+    except requests.exceptions.JSONDecodeError:
+        print("⚠️ API 回應非 JSON，回傳空列表")
+        return {"messages": []}
+    except requests.exceptions.RequestException as e:
+        print(f"❌ API 讀取失敗: {e}")
+        return {"messages": []}
+
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature')
@@ -53,9 +67,8 @@ def callback():
 
             # **安全地傳送到 Node.js**
             try:
-                response = requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data, timeout=10)
-                response.raise_for_status()
-                print("✅ 儲存成功:", response.status_code)
+                response = requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data)
+                print("📤 發送至 Node.js:", response.status_code, response.text)
             except requests.exceptions.RequestException as e:
                 print(f"❌ 儲存失敗: {e}")
 
@@ -66,9 +79,11 @@ def send_welcome(event):
     user_id = event.source.user_id
     user_mode[user_id] = "passive"
     send_mode_selection(user_id)
+
 def is_c_language(text):
     c_keywords = ["C", "c", "c語言", "C語言", "c language", "C language", "c programming", "C programming", "#include", "int ", "void ", "printf(", "scanf(", "return", "malloc", "free", "sizeof", "struct ", "typedef ", "->", "::", "main()"]
     return any(keyword in text for keyword in c_keywords)
+
 def GPT_response(text):
     model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(text) else "gpt-4o"
     print(f"使用模型: {model}")
@@ -116,28 +131,11 @@ def handle_message(event):
     
     print(f"💬 收到來自 {user_id} 的訊息: {user_text}")
 
-    mode_map = {
-        "mode_passive": "passive",
-        "mode_active": "active",
-        "mode_constructive": "constructive",
-        "mode_interactive": "interactive"
-    }
-
-    if user_text in mode_map:
-        user_mode[user_id] = mode_map[user_text]
-        reply_text = f"已切換至『{user_text.replace('mode_', '').capitalize()}』模式"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
-        return
-
     mode = user_mode.get(user_id, "passive")
     print(f"🛠 用戶 {user_id} 的目前模式：{mode}")
 
     # **安全讀取 MongoDB 歷史紀錄**
-    try:
-        history = requests.get(f"{NODE_SERVER_URL}/get_history", params={"user_id": user_id}, timeout=10).json()
-    except requests.exceptions.RequestException as e:
-        print(f"❌ 錯誤: 讀取歷史紀錄失敗 - {e}")
-        history = {}
+    history = load_history(user_id)
 
     messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
     for msg in history.get("messages", [])[-5:]:
@@ -146,19 +144,22 @@ def handle_message(event):
 
     messages.append({"role": "user", "content": user_text})
 
-    # **選擇模式回應**
-    if mode == "passive":
-        response_text = GPT_response(user_text)
-    elif mode == "active":
-        response_text = f"來挑戰一下吧！\n\n{GPT_response('請產生挑戰性問題')}"
-    elif mode == "constructive":
-        response_text = GPT_response(f"請引導用戶深入討論: {user_text}")
-    elif mode == "interactive":
-        response_text = GPT_response(user_text)
-    else:
-        response_text = "未知模式，請重新選擇。"
+    response_text = GPT_response(user_text)
 
     line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
+
+    # ✅ 儲存對話到 MongoDB
+    message_data = {
+        "user_id": user_id,
+        "message_text": user_text,
+        "bot_response": response_text,
+        "message_type": "text"
+    }
+
+    try:
+        requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data, timeout=10)
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 儲存對話失敗: {e}")
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
