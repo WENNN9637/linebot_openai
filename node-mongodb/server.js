@@ -34,23 +34,22 @@ const messageSchema = new mongoose.Schema({
 });
 const Message = mongoose.model("Message", messageSchema);
 
-// **API：儲存使用者訊息**
 app.post("/save_message", async (req, res) => {
     console.log("📥 收到的 message_data:", req.body);
 
-    const { user_id, user_text, bot_response } = req.body;
+    const { user_id, message_text, message_type, bot_response } = req.body;
 
-    if (!user_id || !user_text) {
-        console.log("❌ 缺少 user_id 或 user_text");
+    if (!user_id || !message_text) {
+        console.log("❌ 缺少 user_id 或 message_text");
         return res.status(400).json({ error: "Invalid data" });
     }
 
     try {
         const message = new Message({
             user_id: user_id,
-            message_text: user_text,
-            bot_response: bot_response || "",
-            message_type: "text",
+            message_text: message_text,
+            bot_response: bot_response || "", // ✅ 確保有 bot_response
+            message_type: message_type || "unknown", // ✅ 直接使用傳入的 message_type
             timestamp: new Date()
         });
         await message.save();
@@ -61,6 +60,7 @@ app.post("/save_message", async (req, res) => {
         res.status(500).json({ error: "Database error" });
     }
 });
+
 
 // **API：取得使用者的歷史訊息**
 app.get("/get_history", async (req, res) => {
