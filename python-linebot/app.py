@@ -66,7 +66,9 @@ def send_welcome(event):
     user_id = event.source.user_id
     user_mode[user_id] = "passive"
     send_mode_selection(user_id)
-
+def is_c_language(text):
+    c_keywords = ["C", "c", "c語言", "C語言", "c language", "C language", "c programming", "C programming", "#include", "int ", "void ", "printf(", "scanf(", "return", "malloc", "free", "sizeof", "struct ", "typedef ", "->", "::", "main()"]
+    return any(keyword in text for keyword in c_keywords)
 def GPT_response(text):
     model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(text) else "gpt-4o"
     print(f"使用模型: {model}")
