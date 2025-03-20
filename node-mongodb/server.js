@@ -57,6 +57,27 @@ app.post("/save_message", async (req, res) => {
     }
 });
 
+app.get("/get_history", async (req, res) => {
+    const { user_id } = req.query;
+    if (!user_id) {
+        return res.status(400).json({ error: "缺少 user_id" });
+    }
+
+    try {
+        const messages = await db.collection("messages")
+            .find({ user_id })
+            .sort({ _id: -1 }) // 取最新的對話
+            .limit(10)
+            .toArray();
+
+        res.json({ messages });
+    } catch (err) {
+        console.error("❌ 取得對話紀錄錯誤:", err);
+        res.status(500).json({ error: "伺服器錯誤" });
+    }
+});
+
+
 
 // **啟動伺服器**
 const PORT = process.env.PORT || 3000;
