@@ -238,7 +238,7 @@ def handle_message(event):
     
         if awaiting and last_q:
             if is_asking_for_answer(user_text):
-                # 使用者在問答案
+                # 使用者問答案，回覆並清除狀態
                 answer_prompt = f"""請針對以下 C 語言問題給出簡單明確的解釋與答案：
     
     問題：「{last_q}」
@@ -253,9 +253,23 @@ def handle_message(event):
                 response_text = response["choices"][0]["message"]["content"].strip()
                 user_state[user_id]["awaiting_answer"] = False
                 user_state[user_id]["last_question"] = None
+                user_state[user_id]["responded"] = False
+                user_state[user_id]["irrelevant_count"] = 0
+    
+            elif wants_next_question(user_text):
+                # 使用者要求下一題
+                question = generate_active_question()
+                response_text = f"🧠 新挑戰來囉！\n\n❓{question}\n\n你覺得答案是什麼？"
+                user_state[user_id] = {
+                    "mode": "active",
+                    "last_question": question,
+                    "awaiting_answer": True,
+                    "responded": False,
+                    "irrelevant_count": 0
+                }
     
             elif is_answer_related(user_text, last_q):
-                # 使用者在回答問題
+                # 使用者在回應當前問題
                 answer_prompt = f"""以下是你先前問的 C 語言問題：
     「{last_q}」
     
@@ -271,31 +285,37 @@ def handle_message(event):
                     ]
                 )
                 response_text = response["choices"][0]["message"]["content"].strip()
-                user_state[user_id]["awaiting_answer"] = False
-                user_state[user_id]["last_question"] = None
-    
-            elif wants_next_question(user_text):
-                # 使用者明確要求下一題
-                question = generate_active_question()
-                response_text = f"🧠 新挑戰來囉！\n\n❓{question}\n\n你覺得答案是什麼？"
-                user_state[user_id] = {
-                    "mode": "active",
-                    "last_question": question,
-                    "awaiting_answer": True
-                }
+                user_state[user_id]["responded"] = True  # ✅ 標記已回應（但不清除 last_question）
+                user_state[user_id]["irrelevant_count"] = 0  # 回應正確，清除噪音計數
     
             else:
-                # 不是明確回答，也不是明確要下一題，提示用戶選擇
-                response_text = "📝 你還沒完成上一題喔～如果你想知道答案，可以問我「這題答案是什麼？」；如果想挑戰下一題，請說「下一題」～"
+                # 無關輸入：如果已經回答過，給兩次機會才跳題
+                count = user_state[user_id].get("irrelevant_count", 0) + 1
+                user_state[user_id]["irrelevant_count"] = count
+    
+                if user_state[user_id].get("responded") and count >= 2:
+                    question = generate_active_question()
+                    response_text = f"🧠 看起來這題你差不多了，來一題新的吧：\n\n❓{question}\n\n你覺得答案是什麼？"
+                    user_state[user_id] = {
+                        "mode": "active",
+                        "last_question": question,
+                        "awaiting_answer": True,
+                        "responded": False,
+                        "irrelevant_count": 0
+                    }
+                else:
+                    response_text = "📝 我記得你還在這題喔～想聽答案可以問我「這題答案是什麼？」；想下一題可以說「下一題」！"
     
         else:
-            # 沒有問題在等待中，出新題
+            # 沒有題目在等，用戶剛進來或主動進入 active，出新題
             question = generate_active_question()
             response_text = f"🧠 來挑戰看看這題吧：\n\n❓{question}\n\n你覺得答案是什麼？"
             user_state[user_id] = {
                 "mode": "active",
                 "last_question": question,
-                "awaiting_answer": True
+                "awaiting_answer": True,
+                "responded": False,
+                "irrelevant_count": 0
             }
 
     elif mode == "constructive":
