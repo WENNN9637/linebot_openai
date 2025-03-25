@@ -153,17 +153,17 @@ def handle_message(event):
     }
 
     if user_text in mode_map:
-    user_mode[user_id] = mode_map[user_text]
-    descriptions = {
-        "passive": "你會以閱讀為主，我會盡量簡潔地回答你，不主動提問。",
-        "active": "我會給你一些挑戰性的問題，讓你主動思考和作答。",
-        "constructive": "我會根據你的回答，進一步追問，幫助你深化想法。",
-        "interactive": "我們會像朋友一樣對話，一起討論主題和觀點。"
-    }
-    mode_name = user_text.replace("mode_", "").capitalize()
-    reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{descriptions[mode_map[user_text]]}"
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
-    return
+        user_mode[user_id] = mode_map[user_text]
+        descriptions = {
+            "passive": "你會以閱讀為主，我會盡量簡潔地回答你，不主動提問。",
+            "active": "我會給你一些挑戰性的問題，讓你主動思考和作答。",
+            "constructive": "我會根據你的回答，進一步追問，幫助你深化想法。",
+            "interactive": "我們會像朋友一樣對話，一起討論主題和觀點。"
+        }
+        mode_name = user_text.replace("mode_", "").capitalize()
+        reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{descriptions[mode_map[user_text]]}"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
+        return
 
     # **📌 取得使用者當前模式，預設為被動模式**
     mode = user_mode.get(user_id, "passive")
