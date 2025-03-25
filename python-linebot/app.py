@@ -108,11 +108,15 @@ def generate_interactive_response(user_input):
 
 # 產生引導式問題 (建構模式)
 def generate_constructive_prompt(user_input):
-    prompt = f"使用者說：「{user_input}」，請根據這個內容引導使用者提供更具體的想法，例如詢問他們的觀點或細節。"
+    prompt = f"""使用者說：「{user_input}」
+請根據這句話，設計一個能促使他深入思考的追問，像是：「你為什麼這樣認為？」、「有沒有其他可能？」、「你能舉一個例子嗎？」等。
+問題應該幫助他更清楚自己在想什麼。"""
     response = openai.ChatCompletion.create(
         model="gpt-4o",
-        messages=[{"role": "system", "content": "你是一個引導式學習助手，會幫助使用者深入思考。"},
-                  {"role": "user", "content": prompt}]
+        messages=[
+            {"role": "system", "content": "你是一個引導式學習助手，擅長問問題來啟發使用者思考。"},
+            {"role": "user", "content": prompt}
+        ]
     )
     return response["choices"][0]["message"]["content"]
 
@@ -149,10 +153,17 @@ def handle_message(event):
     }
 
     if user_text in mode_map:
-        user_mode[user_id] = mode_map[user_text]
-        reply_text = f"已切換至『{user_text.replace('mode_', '').capitalize()}』模式"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
-        return
+    user_mode[user_id] = mode_map[user_text]
+    descriptions = {
+        "passive": "你會以閱讀為主，我會盡量簡潔地回答你，不主動提問。",
+        "active": "我會給你一些挑戰性的問題，讓你主動思考和作答。",
+        "constructive": "我會根據你的回答，進一步追問，幫助你深化想法。",
+        "interactive": "我們會像朋友一樣對話，一起討論主題和觀點。"
+    }
+    mode_name = user_text.replace("mode_", "").capitalize()
+    reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{descriptions[mode_map[user_text]]}"
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
+    return
 
     # **📌 取得使用者當前模式，預設為被動模式**
     mode = user_mode.get(user_id, "passive")
@@ -170,7 +181,8 @@ def handle_message(event):
     if mode in ["passive", "interactive"]:
         response_text = GPT_response(messages)
     elif mode == "active":
-        response_text = f"來挑戰一下吧！\n\n{generate_active_question()}"
+        question = generate_active_question()
+        response_text = f"來挑戰一下吧！請嘗試回答這個問題：\n\n{question}\n\n你覺得答案是什麼？"
     elif mode == "constructive":
         response_text = generate_constructive_prompt(user_text)
     else:
