@@ -16,7 +16,7 @@ user_state = {}  # user_id: { "mode": "active", "last_question": "...", "awaitin
 def load_history(user_id):
     url = f"{NODE_SERVER_URL}/get_history"
     try:
-        response = requests.get(url, params={"user_id": user_id, "limit": 10}, timeout=10)
+        response = requests.get(url, params={"user_id": user_id, "limit": 10}, timeout=30)
         response.raise_for_status()
         data = response.json()
         return data if "messages" in data else {"messages": []}
