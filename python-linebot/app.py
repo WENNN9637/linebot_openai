@@ -154,17 +154,27 @@ def handle_message(event):
 
     if user_text in mode_map:
         user_mode[user_id] = mode_map[user_text]
+        
         descriptions = {
             "passive": "你會以閱讀為主，我會盡量簡潔地回答你，不主動提問。",
             "active": "我會給你一些挑戰性的問題，讓你主動思考和作答。",
             "constructive": "我會根據你的回答，進一步追問，幫助你深化想法。",
             "interactive": "我們會像朋友一樣對話，一起討論主題和觀點。"
         }
+    
+        mode_key = mode_map[user_text]
         mode_name = user_text.replace("mode_", "").capitalize()
-        reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{descriptions[mode_map[user_text]]}"
+        description = descriptions[mode_key]
+    
+        # 如果是主動模式就直接問一題
+        if mode_key == "active":
+            question = generate_active_question()
+            reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{description}\n\n🧠 第一題：{question}\n\n你覺得答案是什麼？"
+        else:
+            reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{description}"
+    
         line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
         return
-
     # **📌 取得使用者當前模式，預設為被動模式**
     mode = user_mode.get(user_id, "passive")
     print(f"🛠 用戶 {user_id} 的目前模式：{mode}")
