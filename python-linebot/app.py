@@ -56,11 +56,11 @@ def callback():
             print("📩 LINE 訊息:", message_data)
 
             # **安全地傳送到 Node.js**
-            try:
+            """try:
                 response = requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data)
                 print("📤 發送至 Node.js:", response.status_code, response.text)
             except requests.exceptions.RequestException as e:
-                print(f"❌ 儲存失敗: {e}")
+                print(f"❌ 儲存失敗: {e}")"""
 
     return 'OK'
 
@@ -223,7 +223,7 @@ def handle_message(event):
                 "last_question": question,
                 "awaiting_answer": True
             }
-            reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{description}\n\n🧠 第一題：{question}\n\n你覺得答案是什麼？"
+            reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{description}\n\n第一題：{question}\n\n你覺得答案是什麼？"
         else:
             reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{description}"
     
@@ -232,7 +232,7 @@ def handle_message(event):
 
     # **📌 取得使用者當前模式，預設為被動模式**
     mode = user_mode.get(user_id, "passive")
-    print(f"🛠 用戶 {user_id} 的目前模式：{mode}")
+    print(f"用戶 {user_id} 的目前模式：{mode}")
 
     history = load_history(user_id)
     messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
