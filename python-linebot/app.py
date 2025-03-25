@@ -165,7 +165,7 @@ def GPT_response(messages):
 def is_answer_related(user_input, last_question):
     """判斷使用者輸入是否與上一題有關聯"""
     user_input = user_input.lower()
-    keywords = ["答案", "是什麼", "不懂", "為什麼", "我覺得", "我猜", "可能", "因為", "應該"]
+    keywords = ["答案", "是什麼", "不懂", "為什麼", "我覺得", "我猜", "可能", "因為", "應該", "嗎", "不太懂", "可以", "幫我"]
     return any(kw in user_input for kw in keywords) or is_c_language(user_input)
 
 @handler.add(MessageEvent, message=TextMessage)
