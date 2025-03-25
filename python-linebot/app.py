@@ -114,17 +114,32 @@ def generate_interactive_response(user_input):
 
 # 產生引導式問題 (建構模式)
 def generate_constructive_prompt(user_input):
-    prompt = f"""使用者說：「{user_input}」
-請根據這句話，設計一個能促使他深入思考的追問，像是：「你為什麼這樣認為？」、「有沒有其他可能？」、「你能舉一個例子嗎？」等。
-問題應該幫助他更清楚自己在想什麼。"""
+    prompt = f"""
+使用者輸入了以下內容：
+
+「{user_input}」
+
+你是 C 語言教學助理，請根據這段內容，提出一個「具啟發性」的追問，引導使用者：
+
+- 解釋自己的觀點
+- 補充細節或例子
+- 進一步思考其他可能性
+- 或重構他剛剛的理解
+
+請只給一句具體、自然的追問，例如：
+- 你這樣設計的原因是什麼？
+- 有其他方式可以達到同樣效果嗎？
+- 這段程式在什麼情況下會出錯？
+"""
     response = openai.ChatCompletion.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": "你是一個引導式學習助手，擅長問問題來啟發使用者思考。"},
+            {"role": "system", "content": "你是一位擅長引導學習的 C 語言助教。"},
             {"role": "user", "content": prompt}
         ]
     )
-    return response["choices"][0]["message"]["content"]
+    return response["choices"][0]["message"]["content"].strip()
+
 
 def is_c_language(text):
     c_keywords = ["c", "#include", "int ", "void ", "printf(", "return", "malloc", "struct "]
