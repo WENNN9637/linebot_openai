@@ -11,6 +11,7 @@ handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
 openai.api_key = os.getenv('OPENAI_API_KEY')
 NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
 user_mode = {}
+user_state = {}  # user_id: { "mode": "active", "last_question": "...", "awaiting_answer": True }
 
 def load_history(user_id):
     url = f"{NODE_SERVER_URL}/get_history"
@@ -175,7 +176,7 @@ def handle_message(event):
 
     if user_text in mode_map:
         user_mode[user_id] = mode_map[user_text]
-        
+    
         descriptions = {
             "passive": "你會以閱讀為主，我會盡量簡潔地回答你，不主動提問。",
             "active": "我會給你一些挑戰性的問題，讓你主動思考和作答。",
@@ -187,15 +188,20 @@ def handle_message(event):
         mode_name = user_text.replace("mode_", "").capitalize()
         description = descriptions[mode_key]
     
-        # 如果是主動模式就直接問一題
         if mode_key == "active":
             question = generate_active_question()
+            user_state[user_id] = {
+                "mode": "active",
+                "last_question": question,
+                "awaiting_answer": True
+            }
             reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{description}\n\n🧠 第一題：{question}\n\n你覺得答案是什麼？"
         else:
             reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{description}"
     
         line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
         return
+
     # **📌 取得使用者當前模式，預設為被動模式**
     mode = user_mode.get(user_id, "passive")
     print(f"🛠 用戶 {user_id} 的目前模式：{mode}")
@@ -212,8 +218,45 @@ def handle_message(event):
     if mode in ["passive", "interactive"]:
         response_text = GPT_response(messages)
     elif mode == "active":
-        question = generate_active_question()
-        response_text = f"來挑戰一下吧！請嘗試回答這個問題：\n\n{question}\n\n你覺得答案是什麼？"
+        state = user_state.get(user_id, {})
+        # 如果正在等待使用者對上一題的回應
+        if state.get("awaiting_answer") and state.get("last_question"):
+            answer_prompt = f"""以下是你先前問的 C 語言問題：
+    「{state['last_question']}」
+    
+    使用者現在回覆說：「{user_text}」
+    
+    請針對他的回應給出有建設性的回饋，例如：
+    - 提供簡單說明
+    - 指出哪裡回答得不錯
+    - 如果錯了，給出提示或簡單答案
+    - 鼓勵他再思考一下（不要直接打臉）
+    
+    請用自然、教學式語氣回答。
+    """
+    
+            response = openai.ChatCompletion.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": "你是一位 C 語言學習助理，會根據使用者對問題的回覆給出有啟發性的回饋。"},
+                    {"role": "user", "content": answer_prompt}
+                ]
+            )
+            response_text = response["choices"][0]["message"]["content"].strip()
+    
+            # 回應後結束該題狀態
+            user_state[user_id]["awaiting_answer"] = False
+            user_state[user_id]["last_question"] = None
+    
+        else:
+            # 不是在回答，就給新題目
+            question = generate_active_question()
+            response_text = f"🧠 來挑戰一下吧！請嘗試回答這個問題：\n\n❓{question}\n\n你覺得答案是什麼？"
+            user_state[user_id] = {
+                "mode": "active",
+                "last_question": question,
+                "awaiting_answer": True
+            }
     elif mode == "constructive":
         response_text = generate_constructive_prompt(user_text)
     else:
