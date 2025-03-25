@@ -228,44 +228,68 @@ def handle_message(event):
         last_q = state.get("last_question")
         awaiting = state.get("awaiting_answer", False)
     
-        # 正在等使用者回應那題
+        def is_asking_for_answer(user_input):
+            user_input = user_input.lower()
+            return any(kw in user_input for kw in ["答案", "正確", "是什麼", "解答", "告訴我"])
+    
+        def wants_next_question(user_input):
+            user_input = user_input.lower()
+            return any(kw in user_input for kw in ["下一題", "下一個", "再一題", "請再給一題", "再來", "下一"])
+    
         if awaiting and last_q:
-            if is_answer_related(user_text, last_q):
-                # 使用者正在回答
-                answer_prompt = f"""以下是你先前問的 C 語言問題：
-    「{last_q}」
+            if is_asking_for_answer(user_text):
+                # 使用者在問答案
+                answer_prompt = f"""請針對以下 C 語言問題給出簡單明確的解釋與答案：
     
-    使用者現在回覆說：「{user_text}」
-    
-    請針對他的回應給出有建設性的回饋，例如：
-    - 提供簡單說明
-    - 指出哪裡回答得不錯
-    - 如果錯了，給出提示或簡單答案
-    - 鼓勵他再思考一下
-    
-    請使用自然、正向、教學語氣回答。
+    問題：「{last_q}」
     """
                 response = openai.ChatCompletion.create(
                     model="gpt-4o",
                     messages=[
-                        {"role": "system", "content": "你是一位 C 語言學習助理，會針對使用者回答給予回饋。"},
+                        {"role": "system", "content": "你是一位 C 語言教學助理，請用簡單方式提供明確解答。"},
                         {"role": "user", "content": answer_prompt}
                     ]
                 )
                 response_text = response["choices"][0]["message"]["content"].strip()
                 user_state[user_id]["awaiting_answer"] = False
                 user_state[user_id]["last_question"] = None
-            else:
-                # 使用者跳開話題，才出新題
+    
+            elif is_answer_related(user_text, last_q):
+                # 使用者在回答問題
+                answer_prompt = f"""以下是你先前問的 C 語言問題：
+    「{last_q}」
+    
+    使用者回覆：「{user_text}」
+    
+    請針對他的回答給出回饋（不給答案），可鼓勵、修正錯誤、引導思考。
+    """
+                response = openai.ChatCompletion.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": "你是一位 C 語言助教，請針對使用者的回答進行建設性回饋。"},
+                        {"role": "user", "content": answer_prompt}
+                    ]
+                )
+                response_text = response["choices"][0]["message"]["content"].strip()
+                user_state[user_id]["awaiting_answer"] = False
+                user_state[user_id]["last_question"] = None
+    
+            elif wants_next_question(user_text):
+                # 使用者明確要求下一題
                 question = generate_active_question()
-                response_text = f"🧠 這邊有一個新的挑戰題：\n\n❓{question}\n\n你覺得答案是什麼？"
+                response_text = f"🧠 新挑戰來囉！\n\n❓{question}\n\n你覺得答案是什麼？"
                 user_state[user_id] = {
                     "mode": "active",
                     "last_question": question,
                     "awaiting_answer": True
                 }
+    
+            else:
+                # 不是明確回答，也不是明確要下一題，提示用戶選擇
+                response_text = "📝 你還沒完成上一題喔～如果你想知道答案，可以問我「這題答案是什麼？」；如果想挑戰下一題，請說「下一題」～"
+    
         else:
-            # 沒有任何題目在等待，出第一題
+            # 沒有問題在等待中，出新題
             question = generate_active_question()
             response_text = f"🧠 來挑戰看看這題吧：\n\n❓{question}\n\n你覺得答案是什麼？"
             user_state[user_id] = {
@@ -273,6 +297,7 @@ def handle_message(event):
                 "last_question": question,
                 "awaiting_answer": True
             }
+
     elif mode == "constructive":
         response_text = generate_constructive_prompt(user_text)
     else:
