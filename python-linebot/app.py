@@ -214,11 +214,14 @@ def handle_message(event):
 
     history = load_history(user_id)
     messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
-    for msg in history.get("messages", [])[-10:]:
-        if msg.get("message_text") and msg.get("bot_response"):
+    
+    # 取得歷史對話，按時間順序組合 user 和 bot 的訊息
+    for msg in sorted(history.get("messages", []), key=lambda x: x.get("timestamp", "")):
+        if msg.get("message_text"):
             messages.append({"role": "user", "content": msg["message_text"]})
+        elif msg.get("bot_response"):
             messages.append({"role": "assistant", "content": msg["bot_response"]})
-    messages.append({"role": "user", "content": user_text})
+
 
     # **📌 根據模式來選擇 AI 互動方式**
     if mode in ["passive", "interactive"]:
@@ -324,13 +327,31 @@ def handle_message(event):
         response_text = "未知模式，請重新選擇。"
         
     line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
+    # 儲存使用者輸入
+    try:
+        requests.post(f"{NODE_SERVER_URL}/save_message", json={
+            "user_id": user_id,
+            "message_text": user_text,
+            "bot_response": "",  # 使用者輸入不包含 bot_response
+            "message_type": "text"
+        }, timeout=10)
+        print(f"✅ 儲存使用者訊息: {user_text}")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 儲存使用者訊息失敗: {e}")
+    
+    # 儲存 AI 回覆
     if response_text.strip():
-        message_data = {"user_id": user_id, "message_text": user_text, "bot_response": response_text, "message_type": "text"}
         try:
-            requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data, timeout=10)
-            print(f"✅ 成功儲存對話: {message_data}")
+            requests.post(f"{NODE_SERVER_URL}/save_message", json={
+                "user_id": user_id,
+                "message_text": "",  # AI 沒有 user text
+                "bot_response": response_text,
+                "message_type": "bot"
+            }, timeout=10)
+            print(f"✅ 儲存 AI 回覆: {response_text}")
         except requests.exceptions.RequestException as e:
-            print(f"❌ 儲存對話失敗: {e}")
+            print(f"❌ 儲存 AI 回覆失敗: {e}")
+
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
