@@ -89,13 +89,19 @@ def send_mode_selection(user_id):
 
 # 產生主動學習的問題
 def generate_active_question():
-    prompt = "請產生一個具有挑戰性的問題，適合讓學習者思考並回答。問題應該與學習、科技或邏輯思考相關。"
+    prompt = """
+你是一位 C 語言的學習輔導老師，請你設計一個與 C 語言相關的挑戰性問題，讓學習者可以思考並嘗試回答。問題應涵蓋 C 語言的核心概念，例如：記憶體管理、指標、結構、陣列、流程控制、函式、或字串操作等，難度適中，有助於理解語法與邏輯。
+
+請只產生問題，不要附加答案。
+"""
     response = openai.ChatCompletion.create(
         model="gpt-4o",
-        messages=[{"role": "system", "content": "你是一個智慧型學習助手，會主動提出有趣的問題來幫助使用者學習。"},
-                  {"role": "user", "content": prompt}]
+        messages=[
+            {"role": "system", "content": "你是一個 C 語言教學助手，會主動提出具挑戰性的問題。"},
+            {"role": "user", "content": prompt}
+        ]
     )
-    return response["choices"][0]["message"]["content"]
+    return response["choices"][0]["message"]["content"].strip()
 
 # 產生互動式對話
 def generate_interactive_response(user_input):
