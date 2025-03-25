@@ -162,6 +162,12 @@ def GPT_response(messages):
     )
     return response["choices"][0]["message"]["content"].strip()
 
+def is_answer_related(user_input, last_question):
+    """判斷使用者輸入是否與上一題有關聯"""
+    user_input = user_input.lower()
+    keywords = ["答案", "是什麼", "不懂", "為什麼", "我覺得", "我猜", "可能", "因為", "應該"]
+    return any(kw in user_input for kw in keywords) or is_c_language(user_input)
+
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
@@ -219,10 +225,15 @@ def handle_message(event):
         response_text = GPT_response(messages)
     elif mode == "active":
         state = user_state.get(user_id, {})
-        # 如果正在等待使用者對上一題的回應
-        if state.get("awaiting_answer") and state.get("last_question"):
-            answer_prompt = f"""以下是你先前問的 C 語言問題：
-    「{state['last_question']}」
+        last_q = state.get("last_question")
+        awaiting = state.get("awaiting_answer", False)
+    
+        # 正在等使用者回應那題
+        if awaiting and last_q:
+            if is_answer_related(user_text, last_q):
+                # 使用者正在回答
+                answer_prompt = f"""以下是你先前問的 C 語言問題：
+    「{last_q}」
     
     使用者現在回覆說：「{user_text}」
     
@@ -230,28 +241,33 @@ def handle_message(event):
     - 提供簡單說明
     - 指出哪裡回答得不錯
     - 如果錯了，給出提示或簡單答案
-    - 鼓勵他再思考一下（不要直接打臉）
+    - 鼓勵他再思考一下
     
-    請用自然、教學式語氣回答。
+    請使用自然、正向、教學語氣回答。
     """
-    
-            response = openai.ChatCompletion.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "你是一位 C 語言學習助理，會根據使用者對問題的回覆給出有啟發性的回饋。"},
-                    {"role": "user", "content": answer_prompt}
-                ]
-            )
-            response_text = response["choices"][0]["message"]["content"].strip()
-    
-            # 回應後結束該題狀態
-            user_state[user_id]["awaiting_answer"] = False
-            user_state[user_id]["last_question"] = None
-    
+                response = openai.ChatCompletion.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": "你是一位 C 語言學習助理，會針對使用者回答給予回饋。"},
+                        {"role": "user", "content": answer_prompt}
+                    ]
+                )
+                response_text = response["choices"][0]["message"]["content"].strip()
+                user_state[user_id]["awaiting_answer"] = False
+                user_state[user_id]["last_question"] = None
+            else:
+                # 使用者跳開話題，才出新題
+                question = generate_active_question()
+                response_text = f"🧠 這邊有一個新的挑戰題：\n\n❓{question}\n\n你覺得答案是什麼？"
+                user_state[user_id] = {
+                    "mode": "active",
+                    "last_question": question,
+                    "awaiting_answer": True
+                }
         else:
-            # 不是在回答，就給新題目
+            # 沒有任何題目在等待，出第一題
             question = generate_active_question()
-            response_text = f"🧠 來挑戰一下吧！請嘗試回答這個問題：\n\n❓{question}\n\n你覺得答案是什麼？"
+            response_text = f"🧠 來挑戰看看這題吧：\n\n❓{question}\n\n你覺得答案是什麼？"
             user_state[user_id] = {
                 "mode": "active",
                 "last_question": question,
