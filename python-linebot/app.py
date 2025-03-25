@@ -322,7 +322,9 @@ def handle_message(event):
             }
 
     elif mode == "constructive":
-        response_text = generate_constructive_prompt(user_text)
+        explanation = generate_interactive_response(user_text)
+        followup = generate_constructive_prompt(user_text)
+        response_text = f"{explanation}\n\n🤔 {followup}"
     else:
         response_text = "未知模式，請重新選擇。"
         
