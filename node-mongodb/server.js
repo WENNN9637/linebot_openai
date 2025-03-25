@@ -54,8 +54,8 @@ app.post("/save_message", async (req, res) => {
 
     const { user_id, message_text, message_type, bot_response } = req.body;
 
-    if (!user_id || !message_text || !bot_response) {
-        console.log("❌ 缺少必要資料 (user_id, message_text, 或 bot_response)");
+    if (!user_id || (!message_text && !bot_response)) {
+        console.log("❌ 缺少必要資料 (user_id + message_text 或 bot_response)");
         return res.status(400).json({ error: "Invalid data" });
     }
 
