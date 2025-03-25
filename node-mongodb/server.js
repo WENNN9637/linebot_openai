@@ -6,6 +6,10 @@ const bodyParser = require('body-parser');
 const app = express();
 app.use(bodyParser.json());
 
+app.get('/health', (req, res) => {
+    res.status(200).send('✅ I am alive');
+});
+
 // ✅ 連接 MongoDB（啟用 Keep-Alive）
 mongoose.connect(process.env.MONGO_URI, { 
     useNewUrlParser: true, 
