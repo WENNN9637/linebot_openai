@@ -230,7 +230,7 @@ def handle_message(event):
     
         def is_asking_for_answer(user_input):
             user_input = user_input.lower()
-            return any(kw in user_input for kw in ["答案", "正確", "是什麼", "解答", "告訴我"])
+            return any(kw in user_input for kw in ["答案", "正確", "解答", "告訴我"])
     
         def wants_next_question(user_input):
             user_input = user_input.lower()
