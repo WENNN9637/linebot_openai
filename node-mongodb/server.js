@@ -78,7 +78,7 @@ app.get("/get_history", async (req, res) => {
     }
 
     try {
-        const messages = await Message.find({ user_id }).sort({ timestamp: -1 }).limit(10);
+        const messages = await Message.find({ user_id }).sort({ timestamp: 1 }).limit(20); // 多一點上下文更好
         res.json({ messages });
     } catch (err) {
         console.error("❌ 取得對話紀錄錯誤:", err);
