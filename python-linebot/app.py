@@ -106,12 +106,28 @@ def generate_active_question():
 
 # 產生互動式對話
 def generate_interactive_response(user_input):
+    system_prompt = """
+你是一位熱心、有耐心的 C 語言學習夥伴，請用自然、口語的方式與使用者互動。
+
+請根據使用者的問題或敘述：
+- 清楚回答，不要太學術化
+- 可以用生活化的比喻或簡單的 C 程式碼範例說明
+- 結尾可以帶一句輕鬆的追問，引導使用者思考或分享，例如：
+  - 「你之前有遇過這種情況嗎？」
+  - 「你會怎麼寫呢？」
+  - 「這樣的做法你覺得有什麼好處或壞處？」
+
+請保持輕鬆、有溫度的語氣，就像朋友一樣聊天。
+"""
+
     response = openai.ChatCompletion.create(
         model="gpt-4o",
-        messages=[{"role": "system", "content": "你是一個對話型學習助理，會根據使用者的問題進行互動。"},
-                  {"role": "user", "content": user_input}]
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_input}
+        ]
     )
-    return response["choices"][0]["message"]["content"]
+    return response["choices"][0]["message"]["content"].strip()
 
 # 產生引導式問題 (建構模式)
 def generate_constructive_prompt(user_input):
@@ -262,7 +278,7 @@ def handle_message(event):
             elif wants_next_question(user_text):
                 # 使用者要求下一題
                 question = generate_active_question()
-                response_text = f"🧠 新挑戰來囉！\n\n❓{question}\n\n你覺得答案是什麼？"
+                response_text = f"新挑戰來囉！\n\n{question}\n\n你覺得答案是什麼？"
                 user_state[user_id] = {
                     "mode": "active",
                     "last_question": question,
@@ -298,7 +314,7 @@ def handle_message(event):
     
                 if user_state[user_id].get("responded") and count >= 2:
                     question = generate_active_question()
-                    response_text = f"🧠 看起來這題你差不多了，來一題新的吧：\n\n❓{question}\n\n你覺得答案是什麼？"
+                    response_text = f"看起來這題你差不多了，來一題新的吧：\n\n{question}\n\n你覺得答案是什麼？"
                     user_state[user_id] = {
                         "mode": "active",
                         "last_question": question,
@@ -307,12 +323,12 @@ def handle_message(event):
                         "irrelevant_count": 0
                     }
                 else:
-                    response_text = "📝 我記得你還在這題喔～想聽答案可以問我「這題答案是什麼？」；想下一題可以說「下一題」！"
+                    response_text = "我記得你還在這題喔～想聽答案可以問我「這題答案是什麼？」；想下一題可以說「下一題」！"
     
         else:
             # 沒有題目在等，用戶剛進來或主動進入 active，出新題
             question = generate_active_question()
-            response_text = f"🧠 來挑戰看看這題吧：\n\n❓{question}\n\n你覺得答案是什麼？"
+            response_text = f"來挑戰看看這題吧：\n\n{question}\n\n你覺得答案是什麼？"
             user_state[user_id] = {
                 "mode": "active",
                 "last_question": question,
@@ -324,7 +340,7 @@ def handle_message(event):
     elif mode == "constructive":
         explanation = generate_interactive_response(user_text)
         followup = generate_constructive_prompt(user_text)
-        response_text = f"{explanation}\n\n🤔 {followup}"
+        response_text = f"{explanation}\n\n{followup}"
     else:
         response_text = "未知模式，請重新選擇。"
         
