@@ -105,29 +105,35 @@ def generate_active_question():
     return response["choices"][0]["message"]["content"].strip()
 
 # 產生互動式對話
-def generate_interactive_response(user_input):
+def generate_interactive_response(conversation):
+    """
+    conversation: List of dicts (e.g., [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}])
+    """
+
     system_prompt = """
 你是一位熱心、有耐心的 C 語言學習夥伴，請用自然、口語的方式與使用者互動。
 
 請根據使用者的問題或敘述：
-- 清楚回答，不要太學術化
+- 清楚回答，但不要太學術化
 - 可以用生活化的比喻或簡單的 C 程式碼範例說明
-- 結尾可以帶一句輕鬆的追問，引導使用者思考或分享，例如：
-  - 「你之前有遇過這種情況嗎？」
+- 結尾可以輕鬆地追問，例如：
+  - 「你之前有遇過這樣的情況嗎？」
   - 「你會怎麼寫呢？」
-  - 「這樣的做法你覺得有什麼好處或壞處？」
+  - 「這樣的做法你覺得有什麼優點或風險？」
 
 請保持輕鬆、有溫度的語氣，就像朋友一樣聊天。
 """
 
+    messages = [{"role": "system", "content": system_prompt}] + conversation
+
     response = openai.ChatCompletion.create(
         model="gpt-4o",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_input}
-        ]
+        messages=messages,
+        max_tokens=500,
+        timeout=20
     )
     return response["choices"][0]["message"]["content"].strip()
+
 
 # 產生引導式問題 (建構模式)
 def generate_constructive_prompt(user_input):
@@ -240,8 +246,14 @@ def handle_message(event):
 
 
     # **📌 根據模式來選擇 AI 互動方式**
-    if mode in ["passive", "interactive"]:
+    if mode == "passive":
         response_text = GPT_response(messages)
+    elif mode == "interactive":
+        # 取最近 4 筆對話（含使用者輸入與 AI 回應）
+        recent = [msg for msg in messages if msg["role"] in ["user", "assistant"]]
+        short_history = recent[-4:] if len(recent) > 0 else [{"role": "user", "content": user_text}]
+        response_text = generate_interactive_response(short_history)
+    
     elif mode == "active":
         state = user_state.get(user_id, {})
         last_q = state.get("last_question")
