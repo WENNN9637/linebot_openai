@@ -284,20 +284,11 @@ def handle_message(event):
         messages.append({"role": "user", "content": user_text})
         response_text = GPT_response(messages)
         
-    elif mode == "interactive":
-        # 取最近 4 筆對話（含使用者輸入與 AI 回應）
-        recent = [
-            msg for msg in messages
-            if msg["role"] in ["user", "assistant"] and msg["content"].strip() not in ["", "請選擇學習模式"]
-        ]
-        short_history = recent[-3:]  # 留 3 則歷史（太多沒意義）
-        short_history.append({"role": "user", "content": user_text})  # 現在輸入強制加入
-        response_text = generate_interactive_response(short_history)
-    
     elif mode == "active":
         state = user_state.get(user_id, {})
         last_q = state.get("last_question")
         awaiting = state.get("awaiting_answer", False)
+        level = state.get("difficulty_level", 1)
     
         def is_asking_for_answer(user_input):
             user_input = user_input.lower()
@@ -307,9 +298,19 @@ def handle_message(event):
             user_input = user_input.lower()
             return any(kw in user_input for kw in ["下一題", "下一個", "再一題", "請再給一題", "再來", "下一"])
     
+        def is_answer_related(user_input, question):
+            user_input = user_input.strip().lower()
+            abcd_set = {"a", "b", "c", "d"}
+            if user_input in abcd_set:
+                return True
+            if re.search(r"(選|答案是|應該是)[\s]*[a-d]", user_input):
+                return True
+            keywords = ["printf", "int", "指標", "陣列", "return", "變數"]
+            return any(kw in user_input for kw in keywords)
+    
         if awaiting and last_q:
             if is_asking_for_answer(user_text):
-                # 使用者問答案，回覆並清除狀態
+                # 使用者問答案，給出解釋與正解，重設狀態
                 answer_prompt = f"""請針對以下 C 語言問題給出簡單明確的解釋與答案：
     
     問題：「{last_q}」
@@ -322,25 +323,26 @@ def handle_message(event):
                     ]
                 )
                 response_text = response["choices"][0]["message"]["content"].strip()
-                user_state[user_id]["awaiting_answer"] = False
-                user_state[user_id]["last_question"] = None
-                user_state[user_id]["responded"] = False
-                user_state[user_id]["irrelevant_count"] = 0
+                user_state[user_id].update({
+                    "awaiting_answer": False,
+                    "last_question": None,
+                    "responded": False,
+                    "irrelevant_count": 0
+                })
     
             elif wants_next_question(user_text):
-                # 使用者要求下一題
-                question = generate_active_question()
-                response_text = f"新挑戰來囉！\n\n{question}\n\n你覺得答案是什麼？"
-                user_state[user_id] = {
-                    "mode": "active",
+                # 使用者主動要求下一題，使用當前難度
+                question = generate_active_question(level=level)
+                response_text = f"Level {level} 新挑戰來囉！\n\n{question}\n\n你覺得答案是什麼？"
+                user_state[user_id].update({
                     "last_question": question,
                     "awaiting_answer": True,
                     "responded": False,
                     "irrelevant_count": 0
-                }
+                })
     
             elif is_answer_related(user_text, last_q):
-                # 使用者在回應當前問題
+                # 使用者回答問題，進行回饋（不給正解）
                 answer_prompt = f"""以下是你先前問的 C 語言問題：
     「{last_q}」
     
@@ -356,39 +358,59 @@ def handle_message(event):
                     ]
                 )
                 response_text = response["choices"][0]["message"]["content"].strip()
-                user_state[user_id]["responded"] = True  # ✅ 標記已回應（但不清除 last_question）
-                user_state[user_id]["irrelevant_count"] = 0  # 回應正確，清除噪音計數
+                user_state[user_id]["responded"] = True
+                user_state[user_id]["irrelevant_count"] = 0
+    
+                # 🔁 根據 GPT 回饋內容決定是否調整難度
+                if "答對" in response_text or "正確" in response_text:
+                    new_level = min(level + 1, 3)
+                else:
+                    new_level = max(level - 1, 1)
+                user_state[user_id]["difficulty_level"] = new_level
     
             else:
-                # 無關輸入：如果已經回答過，給兩次機會才跳題
+                # 無關輸入，若已回應則累積跳題次數
                 count = user_state[user_id].get("irrelevant_count", 0) + 1
                 user_state[user_id]["irrelevant_count"] = count
     
                 if user_state[user_id].get("responded") and count >= 2:
-                    question = generate_active_question()
+                    level = user_state[user_id].get("difficulty_level", 1)
+                    question = generate_active_question(level=level)
                     response_text = f"看起來這題你差不多了，來一題新的吧：\n\n{question}\n\n你覺得答案是什麼？"
-                    user_state[user_id] = {
-                        "mode": "active",
+                    user_state[user_id].update({
                         "last_question": question,
                         "awaiting_answer": True,
                         "responded": False,
                         "irrelevant_count": 0
-                    }
+                    })
                 else:
                     response_text = "我記得你還在這題喔～想聽答案可以問我「這題答案是什麼？」；想下一題可以說「下一題」！"
     
         else:
-            # 沒有題目在等，用戶剛進來或主動進入 active，出新題
-            question = generate_active_question()
-            response_text = f"來挑戰看看這題吧：\n\n{question}\n\n你覺得答案是什麼？"
+            # 新使用者或主動進入 active 模式
+            level = state.get("difficulty_level", 1)
+            question = generate_active_question(level=level)
+            response_text = f"來挑戰看看這題吧（Level {level}）：\n\n{question}\n\n你覺得答案是什麼？"
             user_state[user_id] = {
                 "mode": "active",
                 "last_question": question,
                 "awaiting_answer": True,
                 "responded": False,
-                "irrelevant_count": 0
+                "irrelevant_count": 0,
+                "difficulty_level": level
             }
 
+    elif mode == "interactive":
+        # 取最近 4 筆對話（含使用者輸入與 AI 回應）
+        recent = [
+            msg for msg in messages
+            if msg["role"] in ["user", "assistant"] and msg["content"].strip() not in ["", "請選擇學習模式"]
+        ]
+        short_history = recent[-3:]  # 留 3 則歷史（太多沒意義）
+        short_history.append({"role": "user", "content": user_text})  # 現在輸入強制加入
+        response_text = generate_interactive_response(short_history)
+    
+    
     elif mode == "constructive":
         explanation = generate_interactive_response([{"role": "user", "content": user_text}])
         followup = generate_constructive_prompt(user_text)
