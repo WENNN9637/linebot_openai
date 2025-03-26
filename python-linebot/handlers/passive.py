@@ -39,17 +39,7 @@ def handle_passive_mode(event, user_id, user_text, line_bot_api):
     wait_msg = get_waiting_message()
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=wait_msg))
 
-    # 儲存使用者輸入
-    try:
-        requests.post(f"{NODE_SERVER_URL}/save_message", json={
-            "user_id": user_id,
-            "message_text": user_text,
-            "bot_response": "",
-            "message_type": "text"
-        }, timeout=10)
-        print(f"✅ [Passive] 儲存使用者訊息")
-    except Exception as e:
-        print(f"❌ [Passive] 儲存失敗：{e}")
+    # 在這個檔案裡不需要儲存 user_text，統一由 app.py 處理
 
     # 開始背景回覆
     threading.Thread(
