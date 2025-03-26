@@ -3,7 +3,7 @@ from flask import Flask, request, abort, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import *
-from handlers.active import handle_active_mod
+from handlers.active import handle_active_mode
 import os
 import openai
 import re
