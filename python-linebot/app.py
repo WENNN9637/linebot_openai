@@ -38,6 +38,23 @@ def gpt_with_typing(context, user_id, reply_token, system_prompt, user_prompt):
     reply_text = response["choices"][0]["message"]["content"].strip()
     line_bot_api.push_message(user_id, TextSendMessage(text=reply_text))
     return reply_text
+
+def load_history(user_id, retries=3, delay=3):
+    url = f"{NODE_SERVER_URL}/get_history"
+    for attempt in range(retries):
+        try:
+            response = requests.get(url, params={"user_id": user_id, "limit": 10}, timeout=30)
+            response.raise_for_status()
+            data = response.json()
+            print(f"✅ 第 {attempt+1} 次嘗試成功取得歷史訊息")
+            return data if "messages" in data else {"messages": []}
+        except requests.exceptions.RequestException as e:
+            print(f"❌ API 讀取失敗 ({attempt+1}/{retries}): {e}")
+            if attempt < retries - 1:
+                time.sleep(delay)
+    print("⚠️ 多次重試後仍失敗，返回空歷史訊息")
+    return {"messages": []}
+
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature')
