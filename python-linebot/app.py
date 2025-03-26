@@ -315,9 +315,13 @@ def handle_message(event):
             keywords = ["printf", "int", "指標", "陣列", "return", "變數"]
             return any(kw in user_input for kw in keywords)
     
+        def is_followup_question(user_input):
+            user_input = user_input.lower()
+            return any(kw in user_input for kw in ["為什麼", "是什麼", "代表", "差別", "怎麼", "如何", "什麼意思", "跟", "有什麼關係"])
+    
         if awaiting and last_q:
             if is_asking_for_answer(user_text):
-                # 使用者問答案，給出解釋與正解，重設狀態
+                # 使用者問答案
                 answer_prompt = f"""請針對以下 C 語言問題給出簡單明確的解釋與答案：
     
     問題：「{last_q}」
@@ -338,7 +342,7 @@ def handle_message(event):
                 })
     
             elif wants_next_question(user_text):
-                # 使用者主動要求下一題，使用當前難度
+                # 主動要下一題
                 question = generate_active_question(level=level)
                 response_text = f"Level {level} 新挑戰來囉！\n\n{question}\n\n你覺得答案是什麼？"
                 user_state[user_id].update({
@@ -349,7 +353,7 @@ def handle_message(event):
                 })
     
             elif is_answer_related(user_text, last_q):
-                # 使用者回答問題，進行回饋（不給正解）
+                # 使用者作答（不給正解，只給回饋）
                 answer_prompt = f"""以下是你先前問的 C 語言問題：
     「{last_q}」
     
@@ -368,15 +372,32 @@ def handle_message(event):
                 user_state[user_id]["responded"] = True
                 user_state[user_id]["irrelevant_count"] = 0
     
-                # 🔁 根據 GPT 回饋內容決定是否調整難度
+                # 調整難度
                 if "答對" in response_text or "正確" in response_text:
                     new_level = min(level + 1, 3)
                 else:
                     new_level = max(level - 1, 1)
                 user_state[user_id]["difficulty_level"] = new_level
     
+            elif is_followup_question(user_text):
+                # 使用者在延伸問概念 → 回答但不換題
+                followup_prompt = f"""你是一位 C 語言教學助教。
+    目前使用者正在延伸問與這題有關的概念：「{user_text}」
+    問題本身是：「{last_q}」
+    請用簡單清楚的方式回答他，不要提供原本問題的正確解答，也不要出新題。
+    """
+                response = openai.ChatCompletion.create(
+                    model="gpt-4o",
+                    messages=[
+                        {"role": "system", "content": "你是一位 C 語言助教，請用鼓勵且清楚的方式解釋使用者延伸詢問的概念。"},
+                        {"role": "user", "content": followup_prompt}
+                    ]
+                )
+                response_text = response["choices"][0]["message"]["content"].strip()
+                user_state[user_id]["irrelevant_count"] = 0
+    
             else:
-                # 無關輸入，若已回應則累積跳題次數
+                # 非回答也不是追問 → 無關輸入
                 count = user_state[user_id].get("irrelevant_count", 0) + 1
                 user_state[user_id]["irrelevant_count"] = count
     
@@ -394,7 +415,7 @@ def handle_message(event):
                     response_text = "我記得你還在這題喔～想聽答案可以問我「這題答案是什麼？」；想下一題可以說「下一題」！"
     
         else:
-            # 新使用者或主動進入 active 模式
+            # 初次進入 active 模式
             level = state.get("difficulty_level", 1)
             question = generate_active_question(level=level)
             response_text = f"來挑戰看看這題吧（Level {level}）：\n\n{question}\n\n你覺得答案是什麼？"
@@ -406,6 +427,7 @@ def handle_message(event):
                 "irrelevant_count": 0,
                 "difficulty_level": level
             }
+
 
     elif mode == "interactive":
         # 取最近 4 筆對話（含使用者輸入與 AI 回應）
