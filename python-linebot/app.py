@@ -177,6 +177,28 @@ def generate_active_question(level=1):
 
     return response["choices"][0]["message"]["content"].strip()
 
+def save_to_mongo(user_id, user_msg=None, bot_msg=None):
+    """儲存對話資料到 MongoDB，可選擇儲存 user 或 bot"""
+    try:
+        if user_msg:
+            requests.post(f"{NODE_SERVER_URL}/save_message", json={
+                "user_id": user_id,
+                "message_text": user_msg,
+                "bot_response": "",
+                "message_type": "text"
+            }, timeout=10)
+            print(f"✅ 儲存使用者訊息: {user_msg}")
+        if bot_msg:
+            requests.post(f"{NODE_SERVER_URL}/save_message", json={
+                "user_id": user_id,
+                "message_text": "",
+                "bot_response": bot_msg,
+                "message_type": "bot"
+            }, timeout=10)
+            print(f"✅ 儲存 AI 回覆: {bot_msg}")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ 儲存訊息失敗: {e}")
+
 # =============== 接收使用者訊息 ===============
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
@@ -184,7 +206,9 @@ def handle_message(event):
     user_text = event.message.text.strip()
     print(f"💬 收到來自 {user_id} 的訊息: {user_text}")
 
-    # === 模式切換選單處理 ===
+    # 儲存使用者輸入（不管是哪一種模式）
+    save_to_mongo(user_id, user_msg=user_text)
+
     mode_map = {
         "mode_passive": "passive",
         "mode_active": "active",
@@ -194,18 +218,18 @@ def handle_message(event):
 
     if user_text in mode_map:
         user_mode[user_id] = mode_map[user_text]
-    
+
         descriptions = {
             "passive": "你會以閱讀為主，我會盡量簡潔地回答你，不主動提問。",
             "active": "我會給你一些挑戰性的問題，讓你主動思考和作答。",
             "constructive": "我會根據你的回答，進一步追問，幫助你深化想法。",
             "interactive": "我們會像朋友一樣對話，一起討論主題和觀點。"
         }
-    
+
         mode_key = mode_map[user_text]
         mode_name = user_text.replace("mode_", "").capitalize()
         description = descriptions[mode_key]
-    
+
         if mode_key == "active":
             question = generate_active_question()
             user_state[user_id] = {
@@ -216,92 +240,53 @@ def handle_message(event):
             reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{description}\n\n第一題：{question}\n\n你覺得答案是什麼？"
         else:
             reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{description}"
-    
+
         line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
+        save_to_mongo(user_id, bot_msg=reply_text)
         return
 
+    # 取得使用者目前模式
     mode = user_mode.get(user_id, "passive")
     print(f"用戶 {user_id} 的目前模式：{mode}")
 
-    # === 載入歷史訊息，加入 prompt 記憶中 ===
+    # 載入歷史訊息（用於有上下文的模式）
     history = load_history(user_id)
     messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
-    
     for msg in sorted(history.get("messages", []), key=lambda x: x.get("timestamp", "")):
         if msg.get("message_text"):
             messages.append({"role": "user", "content": msg["message_text"]})
         elif msg.get("bot_response"):
             messages.append({"role": "assistant", "content": msg["bot_response"]})
+
+    # 模式處理
     if mode == "passive":
         wait_msg = get_waiting_message("general_chat")
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=wait_msg))
-        
         threading.Thread(
             target=gpt_push_response,
             args=("general_chat", user_id, user_text,
                   "你是一位具有歷史記憶的 C 語言助教，請自然回應。")
         ).start()
-    
-        requests.post(f"{NODE_SERVER_URL}/save_message", json={
-            "user_id": user_id,
-            "message_text": user_text,
-            "bot_response": "",
-            "message_type": "text"
-        }, timeout=10)
         return
-
 
     elif mode == "interactive":
         handle_interactive_mode(event, user_id, user_text, line_bot_api, messages)
         return
 
-
     elif mode == "constructive":
         wait_msg = get_waiting_message("answer_feedback")
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=wait_msg))
-    
         threading.Thread(
             target=gpt_push_response,
             args=("answer_feedback", user_id, user_text,
                   "你是一位會根據回答進一步追問的 C 語言助教，請先簡單回應使用者，再提出有深度的追問。")
         ).start()
-    
-        requests.post(f"{NODE_SERVER_URL}/save_message", json={
-            "user_id": user_id,
-            "message_text": user_text,
-            "bot_response": "",
-            "message_type": "text"
-        }, timeout=10)
         return
 
     elif mode == "active":
         handle_active_mode(event, user_id, user_text, user_state, line_bot_api)
         return
 
-    # 儲存使用者輸入
-    try:
-        requests.post(f"{NODE_SERVER_URL}/save_message", json={
-            "user_id": user_id,
-            "message_text": user_text,
-            "bot_response": "",
-            "message_type": "text"
-        }, timeout=10)
-        print(f"✅ 儲存使用者訊息: {user_text}")
-    except requests.exceptions.RequestException as e:
-        print(f"❌ 儲存使用者訊息失敗: {e}")
-
-    # 儲存 AI 回覆
-    if response_text.strip():
-        try:
-            requests.post(f"{NODE_SERVER_URL}/save_message", json={
-                "user_id": user_id,
-                "message_text": "",
-                "bot_response": response_text,
-                "message_type": "bot"
-            }, timeout=10)
-            print(f"✅ 儲存 AI 回覆: {response_text}")
-        except requests.exceptions.RequestException as e:
-            print(f"❌ 儲存 AI 回覆失敗: {e}")
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
