@@ -81,17 +81,8 @@ def handle_active_mode(event, user_id, user_text, user_state, line_bot_api):
     awaiting = state.get("awaiting_answer", False)
     level = state.get("difficulty_level", 1)
     
-    # === 儲存使用者輸入（主動模式也要記錄！） ===
-    try:
-        requests.post(f"{NODE_SERVER_URL}/save_message", json={
-            "user_id": user_id,
-            "message_text": user_text,
-            "bot_response": "",
-            "message_type": "text"
-        }, timeout=10)
-        print(f"✅ [Active Mode] 儲存使用者訊息：{user_text}")
-    except requests.exceptions.RequestException as e:
-        print(f"❌ [Active Mode] 儲存使用者訊息失敗：{e}")
+    # 在這個檔案裡不需要儲存 user_text，統一由 app.py 處理
+
 
     def is_asking_for_answer(user_input):
         return any(kw in user_input.lower() for kw in ["答案", "正確", "解答", "告訴我"])
