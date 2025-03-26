@@ -6,6 +6,8 @@ from linebot.models import *
 
 from handlers.active import handle_active_mode
 from handlers.interactive import handle_interactive_mode
+from handlers.constructive import handle_constructive_mode
+from handlers.passive import handle_passive_mode
 
 import os
 import openai
@@ -260,31 +262,26 @@ def handle_message(event):
 
     # 模式處理
     if mode == "passive":
-        wait_msg = get_waiting_message("general_chat")
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=wait_msg))
-        threading.Thread(
-            target=gpt_push_response,
-            args=("general_chat", user_id, user_text,
-                  "你是一位具有歷史記憶的 C 語言助教，請自然回應。")
-        ).start()
+        handle_passive_mode(event, user_id, user_text, line_bot_api)
         return
 
+    elif mode == "constructive":
+    handle_constructive_mode(event, user_id, user_text, line_bot_api)
+    return
+
+    
     elif mode == "interactive":
         handle_interactive_mode(event, user_id, user_text, line_bot_api, messages)
         return
 
-    elif mode == "constructive":
-        wait_msg = get_waiting_message("answer_feedback")
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=wait_msg))
-        threading.Thread(
-            target=gpt_push_response,
-            args=("answer_feedback", user_id, user_text,
-                  "你是一位會根據回答進一步追問的 C 語言助教，請先簡單回應使用者，再提出有深度的追問。")
-        ).start()
-        return
-
     elif mode == "active":
         handle_active_mode(event, user_id, user_text, user_state, line_bot_api)
+        return
+    else:
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text="未知模式，請重新選擇 \n請輸入「模式」或點選選單選擇學習模式。")
+        )
         return
 
 
