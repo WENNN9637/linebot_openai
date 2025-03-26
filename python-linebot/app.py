@@ -14,25 +14,30 @@ NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
 user_mode = {}
 user_state = {}  # user_id: { "mode": "active", "last_question": "...", "awaiting_answer": True }
 
+def get_waiting_message(context):
+    messages = {
+        "answer_feedback": "來看看你答得怎麼樣 🤔",
+        "explain_answer": "讓我查查正確答案是什麼 🧐",
+        "followup_concept": "好問題，我來解釋一下 ✍️",
+        "next_question": "等我生一題新的出來 🎯",
+        "general_chat": "我想想怎麼說比較好 🤔"
+    }
+    return messages.get(context, "稍等一下，我想想看 🤔")
 
-def load_history(user_id, retries=3, delay=3):
-    url = f"{NODE_SERVER_URL}/get_history"
-    for attempt in range(retries):
-        try:
-            response = requests.get(url, params={"user_id": user_id, "limit": 10}, timeout=10)
-            response.raise_for_status()
-            data = response.json()
-            print(f"✅ 第 {attempt+1} 次嘗試成功取得歷史訊息")
-            return data if "messages" in data else {"messages": []}
-        except requests.exceptions.RequestException as e:
-            print(f"❌ API 讀取失敗 ({attempt+1}/{retries}): {e}")
-            if attempt < retries - 1:
-                time.sleep(delay)
-    print("⚠️ 多次重試後仍失敗，返回空歷史訊息")
-    return {"messages": []}
+def gpt_with_typing(context, user_id, reply_token, system_prompt, user_prompt):
+    wait_msg = get_waiting_message(context)
+    line_bot_api.reply_message(reply_token, TextSendMessage(text=wait_msg))
 
-
-
+    response = openai.ChatCompletion.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ]
+    )
+    reply_text = response["choices"][0]["message"]["content"].strip()
+    line_bot_api.push_message(user_id, TextSendMessage(text=reply_text))
+    return reply_text
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature')
@@ -48,7 +53,6 @@ def callback():
         print("❌ LINE 簽名驗證失敗")
         abort(400)
 
-    # **解析 JSON 並儲存到 MongoDB**
     data = request.get_json(silent=True)
     if not data or "events" not in data:
         return jsonify({"error": "Invalid data"}), 400
@@ -61,14 +65,6 @@ def callback():
                 "message_type": event["message"].get("type", "unknown")
             }
             print("📩 LINE 訊息:", message_data)
-
-            # **安全地傳送到 Node.js**
-            """try:
-                response = requests.post(f"{NODE_SERVER_URL}/save_message", json=message_data)
-                print("📤 發送至 Node.js:", response.status_code, response.text)
-            except requests.exceptions.RequestException as e:
-                print(f"❌ 儲存失敗: {e}")"""
-
     return 'OK'
 
 def send_mode_selection(user_id):
@@ -95,7 +91,6 @@ def send_mode_selection(user_id):
     )
     line_bot_api.push_message(user_id, flex_message)
 
-# 產生主動學習的問題
 def generate_active_question(level=1):
     system_message = (
         "你是一位 C 語言教學助手，會根據題目難度產生挑戰性問題。\n"
@@ -121,110 +116,12 @@ def generate_active_question(level=1):
     )
 
     return response["choices"][0]["message"]["content"].strip()
-
-
-# 產生互動式對話
-def generate_interactive_response(conversation):
-    """
-    conversation: List of dicts (e.g., [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}])
-    """
-
-    system_prompt = """
-你是一位熱心、有耐心的 C 語言學習夥伴，會用自然、口語的方式與使用者互動。
-
-請根據使用者「最近的提問內容」，做出清楚但輕鬆的回答。
-即使之前講過某個主題，若使用者切換話題，請優先回應「目前的提問」。
-
-請避免重複使用者的語句，盡量提供實際說明、比喻、或簡單的程式碼範例。
-
-最後可以加上一句反問，引導使用者繼續思考，例如：
-- 你有遇過這樣的情況嗎？
-- 如果是你會怎麼寫？
-- 這樣的設計你覺得有什麼風險？
-
-請用像朋友一樣聊天的語氣。
-"""
-
-    messages = [{"role": "system", "content": system_prompt}] + conversation
-
-    response = openai.ChatCompletion.create(
-        model="gpt-4o",
-        messages=messages,
-        max_tokens=500,
-        timeout=20
-    )
-    return response["choices"][0]["message"]["content"].strip()
-
-
-# 產生引導式問題 (建構模式)
-def generate_constructive_prompt(user_input):
-    prompt = f"""
-使用者輸入了以下內容：
-
-「{user_input}」
-
-你是 C 語言教學助理，請根據這段內容，提出一個「具啟發性」的追問，引導使用者：
-
-- 解釋自己的觀點
-- 補充細節或例子
-- 進一步思考其他可能性
-- 或重構他剛剛的理解
-
-請只給一句具體、自然的追問，例如：
-- 你這樣設計的原因是什麼？
-- 有其他方式可以達到同樣效果嗎？
-- 這段程式在什麼情況下會出錯？
-"""
-    response = openai.ChatCompletion.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "你是一位擅長引導學習的 C 語言助教。"},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    return response["choices"][0]["message"]["content"].strip()
-
-
-def is_c_language(text):
-    c_keywords = ["c", "#include", "int ", "void ", "printf(", "return", "malloc", "struct "]
-    text = text.lower()  # 轉換為小寫，避免大小寫不匹配
-    return any(keyword in text for keyword in c_keywords)
-
-def GPT_response(messages):
-    if not isinstance(messages, list) or len(messages) == 0:
-        raise ValueError("messages 必須是一個包含字典的列表")
-    if messages[0].get("role") != "system":
-        messages.insert(0, {
-            "role": "system",
-            "content": (
-                "你是一個具有對話歷史記憶能力的 C 語言教學助手。"
-                "你會根據使用者的過去提問與回答記錄進行回應。"
-                "請使用繁體中文或英文回答，不要使用簡體中文。"
-                "如果使用者問你是否有記憶，請說你會記得最近的對話紀錄，但不會永久保存。"
-                "請以自然、有耐心的語氣回應。"
-            )
-        })
-    model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(messages[-1].get("content", "")) else "gpt-4o"
-    print(f"使用模型: {model}")
-    response = openai.ChatCompletion.create(
-        model=model,
-        messages=messages,
-        max_tokens=500,
-        timeout=30  # 避免 API 超時
-    )
-    return response["choices"][0]["message"]["content"].strip()
-
-def is_answer_related(user_input, last_question):
-    """判斷使用者輸入是否與上一題有關聯"""
-    user_input = user_input.lower()
-    keywords = ["答案", "是什麼", "不懂", "為什麼", "我覺得", "我猜", "可能", "因為", "應該", "嗎", "不太懂", "可以", "幫我"]
-    return any(kw in user_input for kw in keywords) or is_c_language(user_input)
-
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
     user_text = event.message.text.strip()
     print(f"💬 收到來自 {user_id} 的訊息: {user_text}")
+    
     mode_map = {
         "mode_passive": "passive",
         "mode_active": "active",
@@ -260,51 +157,80 @@ def handle_message(event):
         line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
         return
 
-    # **📌 取得使用者當前模式，預設為被動模式**
     mode = user_mode.get(user_id, "passive")
     print(f"用戶 {user_id} 的目前模式：{mode}")
 
     history = load_history(user_id)
     messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
     
-    # 取得歷史對話，按時間順序組合 user 和 bot 的訊息
     for msg in sorted(history.get("messages", []), key=lambda x: x.get("timestamp", "")):
         if msg.get("message_text"):
             messages.append({"role": "user", "content": msg["message_text"]})
         elif msg.get("bot_response"):
             messages.append({"role": "assistant", "content": msg["bot_response"]})
-
-
-    # **📌 根據模式來選擇 AI 互動方式**
     if mode == "passive":
-        history = load_history(user_id)
-        messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
-    
-        # 加入歷史訊息
-        for msg in sorted(history.get("messages", []), key=lambda x: x.get("timestamp", "")):
-            if msg.get("message_text"):
-                messages.append({"role": "user", "content": msg["message_text"]})
-            elif msg.get("bot_response"):
-                messages.append({"role": "assistant", "content": msg["bot_response"]})
-    
-        # ✅ 加入目前輸入（關鍵！）
-        messages.append({"role": "user", "content": user_text})
-        response_text = GPT_response(messages)
-        
+        # 被動模式：使用 gpt_with_typing 回覆
+        response_text = gpt_with_typing(
+            context="general_chat",
+            user_id=user_id,
+            reply_token=event.reply_token,
+            system_prompt="你是一位具有歷史記憶的 C 語言助教，請以自然有耐心的方式回應。",
+            user_prompt=user_text
+        )
+
+    elif mode == "interactive":
+        recent = [
+            msg for msg in messages
+            if msg["role"] in ["user", "assistant"] and msg["content"].strip() not in ["", "請選擇學習模式"]
+        ]
+        short_history = recent[-3:]
+        short_history.append({"role": "user", "content": user_text})
+
+        joined_prompt = "\n".join([msg["content"] for msg in short_history])
+
+        response_text = gpt_with_typing(
+            context="general_chat",
+            user_id=user_id,
+            reply_token=event.reply_token,
+            system_prompt="""
+你是一位熱心、有耐心的 C 語言學習夥伴，會用自然、口語的方式與使用者互動。
+請根據使用者「最近的提問內容」，做出清楚但輕鬆的回答。
+""",
+            user_prompt=joined_prompt
+        )
+
+    elif mode == "constructive":
+        explanation = gpt_with_typing(
+            context="general_chat",
+            user_id=user_id,
+            reply_token=event.reply_token,
+            system_prompt="你是一位 C 語言助教，請自然地解釋以下使用者說的內容：",
+            user_prompt=user_text
+        )
+
+        followup = gpt_with_typing(
+            context="answer_feedback",
+            user_id=user_id,
+            reply_token=event.reply_token,
+            system_prompt="你是一位擅長引導學習的助教，請提出一個有深度的追問。",
+            user_prompt=f"針對這段回應：「{user_text}」，請提出一個追問。"
+        )
+
+        response_text = f"{explanation}\n\n{followup}"
     elif mode == "active":
         state = user_state.get(user_id, {})
         last_q = state.get("last_question")
         awaiting = state.get("awaiting_answer", False)
         level = state.get("difficulty_level", 1)
-    
+
         def is_asking_for_answer(user_input):
             user_input = user_input.lower()
             return any(kw in user_input for kw in ["答案", "正確", "解答", "告訴我"])
-    
+
         def wants_next_question(user_input):
             user_input = user_input.lower()
             return any(kw in user_input for kw in ["下一題", "下一個", "再一題", "請再給一題", "再來", "下一"])
-    
+
         def is_answer_related(user_input, question):
             user_input = user_input.strip().lower()
             abcd_set = {"a", "b", "c", "d"}
@@ -314,111 +240,98 @@ def handle_message(event):
                 return True
             keywords = ["printf", "int", "指標", "陣列", "return", "變數"]
             return any(kw in user_input for kw in keywords)
-    
+
         def is_followup_question(user_input):
             user_input = user_input.lower()
             return any(kw in user_input for kw in ["為什麼", "是什麼", "代表", "差別", "怎麼", "如何", "什麼意思", "跟", "有什麼關係"])
-    
+
         if awaiting and last_q:
             if is_asking_for_answer(user_text):
-                # 使用者問答案
-                answer_prompt = f"""請針對以下 C 語言問題給出簡單明確的解釋與答案：
-    
-    問題：「{last_q}」
-    """
-                response = openai.ChatCompletion.create(
-                    model="gpt-4o",
-                    messages=[
-                        {"role": "system", "content": "你是一位 C 語言教學助理，請用簡單方式提供明確解答。"},
-                        {"role": "user", "content": answer_prompt}
-                    ]
+                response_text = gpt_with_typing(
+                    context="explain_answer",
+                    user_id=user_id,
+                    reply_token=event.reply_token,
+                    system_prompt="你是一位 C 語言教學助理，請用簡單方式提供明確解答。",
+                    user_prompt=f"請針對以下 C 語言問題給出簡單明確的解釋與答案：\n\n問題：「{last_q}」"
                 )
-                response_text = response["choices"][0]["message"]["content"].strip()
                 user_state[user_id].update({
                     "awaiting_answer": False,
                     "last_question": None,
                     "responded": False,
                     "irrelevant_count": 0
                 })
-    
+
             elif wants_next_question(user_text):
-                # 主動要下一題
                 question = generate_active_question(level=level)
                 response_text = f"Level {level} 新挑戰來囉！\n\n{question}\n\n你覺得答案是什麼？"
+                line_bot_api.reply_message(event.reply_token, TextSendMessage(text=get_waiting_message("next_question")))
+                line_bot_api.push_message(user_id, TextSendMessage(text=response_text))
                 user_state[user_id].update({
                     "last_question": question,
                     "awaiting_answer": True,
                     "responded": False,
                     "irrelevant_count": 0
                 })
-    
+                return
+
             elif is_answer_related(user_text, last_q):
-                # 使用者作答（不給正解，只給回饋）
-                answer_prompt = f"""以下是你先前問的 C 語言問題：
-    「{last_q}」
-    
-    使用者回覆：「{user_text}」
-    
-    請針對他的回答給出回饋（不給答案），可鼓勵、修正錯誤、引導思考。
-    """
-                response = openai.ChatCompletion.create(
-                    model="gpt-4o",
-                    messages=[
-                        {"role": "system", "content": "你是一位 C 語言助教，請針對使用者的回答進行建設性回饋。"},
-                        {"role": "user", "content": answer_prompt}
-                    ]
+                response_text = gpt_with_typing(
+                    context="answer_feedback",
+                    user_id=user_id,
+                    reply_token=event.reply_token,
+                    system_prompt="你是一位 C 語言助教，請針對使用者的回答進行建設性回饋。",
+                    user_prompt=f"""以下是你先前問的 C 語言問題：
+「{last_q}」
+
+使用者回覆：「{user_text}」
+
+請針對他的回答給出回饋（不給答案），可鼓勵、修正錯誤、引導思考。"""
                 )
-                response_text = response["choices"][0]["message"]["content"].strip()
                 user_state[user_id]["responded"] = True
                 user_state[user_id]["irrelevant_count"] = 0
-    
-                # 調整難度
+
+                # 自動調整難度
                 if "答對" in response_text or "正確" in response_text:
-                    new_level = min(level + 1, 3)
+                    user_state[user_id]["difficulty_level"] = min(level + 1, 3)
                 else:
-                    new_level = max(level - 1, 1)
-                user_state[user_id]["difficulty_level"] = new_level
-    
+                    user_state[user_id]["difficulty_level"] = max(level - 1, 1)
+
             elif is_followup_question(user_text):
-                # 使用者在延伸問概念 → 回答但不換題
-                followup_prompt = f"""你是一位 C 語言教學助教。
-    目前使用者正在延伸問與這題有關的概念：「{user_text}」
-    問題本身是：「{last_q}」
-    請用簡單清楚的方式回答他，不要提供原本問題的正確解答，也不要出新題。
-    """
-                response = openai.ChatCompletion.create(
-                    model="gpt-4o",
-                    messages=[
-                        {"role": "system", "content": "你是一位 C 語言助教，請用鼓勵且清楚的方式解釋使用者延伸詢問的概念。"},
-                        {"role": "user", "content": followup_prompt}
-                    ]
+                response_text = gpt_with_typing(
+                    context="followup_concept",
+                    user_id=user_id,
+                    reply_token=event.reply_token,
+                    system_prompt="你是一位 C 語言助教，請用鼓勵且清楚的方式解釋使用者延伸詢問的概念。",
+                    user_prompt=f"""你是一位 C 語言教學助教。
+目前使用者正在延伸問與這題有關的概念：「{user_text}」
+問題本身是：「{last_q}」
+請用簡單清楚的方式回答他，不要提供原本問題的正確解答，也不要出新題。"""
                 )
-                response_text = response["choices"][0]["message"]["content"].strip()
                 user_state[user_id]["irrelevant_count"] = 0
-    
+
             else:
-                # 非回答也不是追問 → 無關輸入
                 count = user_state[user_id].get("irrelevant_count", 0) + 1
                 user_state[user_id]["irrelevant_count"] = count
-    
+
                 if user_state[user_id].get("responded") and count >= 2:
-                    level = user_state[user_id].get("difficulty_level", 1)
                     question = generate_active_question(level=level)
                     response_text = f"看起來這題你差不多了，來一題新的吧：\n\n{question}\n\n你覺得答案是什麼？"
+                    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=get_waiting_message("next_question")))
+                    line_bot_api.push_message(user_id, TextSendMessage(text=response_text))
                     user_state[user_id].update({
                         "last_question": question,
                         "awaiting_answer": True,
                         "responded": False,
                         "irrelevant_count": 0
                     })
+                    return
                 else:
                     response_text = "我記得你還在這題喔～想聽答案可以問我「這題答案是什麼？」；想下一題可以說「下一題」！"
-    
         else:
-            # 初次進入 active 模式
-            level = state.get("difficulty_level", 1)
             question = generate_active_question(level=level)
             response_text = f"來挑戰看看這題吧（Level {level}）：\n\n{question}\n\n你覺得答案是什麼？"
+            line_bot_api.reply_message(event.reply_token, TextSendMessage(text=get_waiting_message("next_question")))
+            line_bot_api.push_message(user_id, TextSendMessage(text=response_text))
             user_state[user_id] = {
                 "mode": "active",
                 "last_question": question,
@@ -427,52 +340,31 @@ def handle_message(event):
                 "irrelevant_count": 0,
                 "difficulty_level": level
             }
-
-
-    elif mode == "interactive":
-        # 取最近 4 筆對話（含使用者輸入與 AI 回應）
-        recent = [
-            msg for msg in messages
-            if msg["role"] in ["user", "assistant"] and msg["content"].strip() not in ["", "請選擇學習模式"]
-        ]
-        short_history = recent[-3:]  # 留 3 則歷史（太多沒意義）
-        short_history.append({"role": "user", "content": user_text})  # 現在輸入強制加入
-        response_text = generate_interactive_response(short_history)
-    
-    
-    elif mode == "constructive":
-        explanation = generate_interactive_response([{"role": "user", "content": user_text}])
-        followup = generate_constructive_prompt(user_text)
-        response_text = f"{explanation}\n\n{followup}"
-    else:
-        response_text = "未知模式，請重新選擇。"
-        
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(response_text))
+            return
     # 儲存使用者輸入
     try:
         requests.post(f"{NODE_SERVER_URL}/save_message", json={
             "user_id": user_id,
             "message_text": user_text,
-            "bot_response": "",  # 使用者輸入不包含 bot_response
+            "bot_response": "",
             "message_type": "text"
         }, timeout=10)
         print(f"✅ 儲存使用者訊息: {user_text}")
     except requests.exceptions.RequestException as e:
         print(f"❌ 儲存使用者訊息失敗: {e}")
-    
+
     # 儲存 AI 回覆
     if response_text.strip():
         try:
             requests.post(f"{NODE_SERVER_URL}/save_message", json={
                 "user_id": user_id,
-                "message_text": "",  # AI 沒有 user text
+                "message_text": "",
                 "bot_response": response_text,
                 "message_type": "bot"
             }, timeout=10)
             print(f"✅ 儲存 AI 回覆: {response_text}")
         except requests.exceptions.RequestException as e:
             print(f"❌ 儲存 AI 回覆失敗: {e}")
-
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
