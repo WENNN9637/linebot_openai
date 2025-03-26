@@ -96,25 +96,32 @@ def send_mode_selection(user_id):
     line_bot_api.push_message(user_id, flex_message)
 
 # 產生主動學習的問題
-def generate_active_question():
-    prompt = """
-你是一位 C 語言的學習輔導老師，請你設計一個與 C 語言相關的問題，從選擇題、填空題、簡答題選一種，讓學習者可以思考並嘗試回答。
-如正確，給予鼓勵；錯誤，先問使用者知道為什麼錯誤嗎？待使用者回答後，再給予正確訂正。
+def generate_active_question(level=1):
+    system_message = (
+        "你是一位 C 語言教學助手，會根據題目難度產生挑戰性問題。\n"
+        "Level 1：選擇題（簡單）\n"
+        "Level 2：填空題（中等）\n"
+        "Level 3：簡答題（進階）\n"
+        "這些難度資訊只用於內部控制，請勿顯示給使用者。\n"
+        "出題範圍從 C 語言基本語法、變數、流程控制，到進階如指標與迴圈。"
+    )
 
-請只產生問題，不要附加答案。
-"""
+    user_prompt = (
+        f"請產生一題 C 語言的問題，難度為 Level {level}。\n"
+        "請從選擇題、填空題、簡答題中擇一產生，幫助學習者思考。\n"
+        "不要提供答案。"
+    )
+
     response = openai.ChatCompletion.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content":"你是一位 C 語言教學助手，會依據使用者的程度，主動提出具挑戰性的問題。"
-                    "請依照『由簡入深』的學習路徑出題，題目範圍包含：變數、資料型態、流程控制、函式、陣列、字串處理、結構、指標、迴圈搭配指標等核心概念。"
-                    "難度共三級：選擇題為第一級，填空題為第二級，簡答題為第三級，這些難度分級僅供系統內部使用，請勿顯示給使用者。"
-                    "根據使用者答題表現自動調整問題難度，若答對則提升難度，若答錯則降低難度。"
-                    "題目要具備啟發性，幫助學習者理解語法與邏輯，不需提供答案，只出題。"},
-            {"role": "user", "content": prompt}
+            {"role": "system", "content": system_message},
+            {"role": "user", "content": user_prompt}
         ]
     )
+
     return response["choices"][0]["message"]["content"].strip()
+
 
 # 產生互動式對話
 def generate_interactive_response(conversation):
