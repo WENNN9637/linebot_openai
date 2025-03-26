@@ -266,8 +266,8 @@ def handle_message(event):
         return
 
     elif mode == "constructive":
-    handle_constructive_mode(event, user_id, user_text, line_bot_api)
-    return
+        handle_constructive_mode(event, user_id, user_text, line_bot_api)
+        return
 
     
     elif mode == "interactive":
