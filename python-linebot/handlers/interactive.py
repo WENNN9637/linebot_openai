@@ -49,9 +49,24 @@ def handle_interactive_mode(event, user_id, user_text, line_bot_api, history):
         if msg["role"] in ["user", "assistant"] and msg["content"].strip() not in ["", "請選擇學習模式"]
     ]
     short_history = recent[-3:]  # 留最近 3 筆
+
+    # 🔔 回覆等待訊息
     wait_msg = get_waiting_message("general_chat")
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=wait_msg))
 
+    # 💾 儲存使用者輸入
+    try:
+        requests.post(f"{NODE_SERVER_URL}/save_message", json={
+            "user_id": user_id,
+            "message_text": user_text,
+            "bot_response": "",
+            "message_type": "text"
+        }, timeout=10)
+        print(f"✅ [Interactive Mode] 儲存使用者輸入：{user_text}")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ [Interactive Mode] 儲存使用者輸入失敗：{e}")
+
+    # 🧠 建立 prompt
     system_prompt = (
         "你是一位熱心、有耐心的 C 語言學習夥伴，會用自然、口語的方式與使用者互動。\n"
         "請根據使用者最近提問內容，清楚但輕鬆地回答。\n"
@@ -59,7 +74,9 @@ def handle_interactive_mode(event, user_id, user_text, line_bot_api, history):
         "最後加一句反問：例如「你會怎麼做？」或「這樣合理嗎？」"
     )
 
+    # ✅ 開啟背景回覆執行緒
     threading.Thread(
         target=gpt_push_response,
         args=("general_chat", user_id, user_text, system_prompt, line_bot_api, short_history)
     ).start()
+
