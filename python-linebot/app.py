@@ -356,7 +356,7 @@ def handle_message(event):
             }
 
     elif mode == "constructive":
-        explanation = generate_interactive_response(user_text)
+        explanation = generate_interactive_response([{"role": "user", "content": user_text}])
         followup = generate_constructive_prompt(user_text)
         response_text = f"{explanation}\n\n{followup}"
     else:
