@@ -17,8 +17,7 @@ def get_waiting_message(context="general_chat"):
 def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, history_messages=None):
     user_prompt = user_text
     if history_messages:
-        user_prompt = "\n".join([msg["content"] for msg in history_messages] + [user_text])
-
+        user_prompt = "\n".join([msg["content"] for msg in history_messages])
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4o",
