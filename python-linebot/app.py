@@ -3,7 +3,10 @@ from flask import Flask, request, abort, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import *
+
 from handlers.active import handle_active_mode
+from handlers.interactive import handle_interactive_mode
+
 import os
 import openai
 import re
@@ -249,28 +252,7 @@ def handle_message(event):
 
 
     elif mode == "interactive":
-        wait_msg = get_waiting_message("general_chat")
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=wait_msg))
-    
-        recent = [
-            msg for msg in messages
-            if msg["role"] in ["user", "assistant"] and msg["content"].strip() not in ["", "請選擇學習模式"]
-        ]
-        short_history = recent[-3:]
-    
-        threading.Thread(
-            target=gpt_push_response,
-            args=("general_chat", user_id, user_text,
-                  "你是一位熱心、有耐心的 C 語言學習夥伴，會用自然、口語的方式互動。",
-                  short_history)
-        ).start()
-    
-        requests.post(f"{NODE_SERVER_URL}/save_message", json={
-            "user_id": user_id,
-            "message_text": user_text,
-            "bot_response": "",
-            "message_type": "text"
-        }, timeout=10)
+        handle_interactive_mode(event, user_id, user_text, line_bot_api, messages)
         return
 
 
