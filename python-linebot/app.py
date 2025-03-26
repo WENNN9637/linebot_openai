@@ -249,7 +249,20 @@ def handle_message(event):
 
     # **📌 根據模式來選擇 AI 互動方式**
     if mode == "passive":
+        history = load_history(user_id)
+        messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
+    
+        # 加入歷史訊息
+        for msg in sorted(history.get("messages", []), key=lambda x: x.get("timestamp", "")):
+            if msg.get("message_text"):
+                messages.append({"role": "user", "content": msg["message_text"]})
+            elif msg.get("bot_response"):
+                messages.append({"role": "assistant", "content": msg["bot_response"]})
+    
+        # ✅ 加入目前輸入（關鍵！）
+        messages.append({"role": "user", "content": user_text})
         response_text = GPT_response(messages)
+        
     elif mode == "interactive":
         # 取最近 4 筆對話（含使用者輸入與 AI 回應）
         recent = [
