@@ -182,16 +182,16 @@ def GPT_response(messages):
     if not isinstance(messages, list) or len(messages) == 0:
         raise ValueError("messages 必須是一個包含字典的列表")
     if messages[0].get("role") != "system":
-    messages.insert(0, {
-        "role": "system",
-        "content": (
-            "你是一個具有對話歷史記憶能力的 C 語言教學助手。"
-            "你會根據使用者的過去提問與回答記錄進行回應。"
-            "請使用繁體中文或英文回答，不要使用簡體中文。"
-            "如果使用者問你是否有記憶，請說你會記得最近的對話紀錄，但不會永久保存。"
-            "請以自然、有耐心的語氣回應。"
-        )
-    })
+        messages.insert(0, {
+            "role": "system",
+            "content": (
+                "你是一個具有對話歷史記憶能力的 C 語言教學助手。"
+                "你會根據使用者的過去提問與回答記錄進行回應。"
+                "請使用繁體中文或英文回答，不要使用簡體中文。"
+                "如果使用者問你是否有記憶，請說你會記得最近的對話紀錄，但不會永久保存。"
+                "請以自然、有耐心的語氣回應。"
+            )
+        })
     model = "ft:gpt-4o-2024-08-06:personal::B5sbnkYa" if is_c_language(messages[-1].get("content", "")) else "gpt-4o"
     print(f"使用模型: {model}")
     response = openai.ChatCompletion.create(
