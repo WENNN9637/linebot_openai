@@ -1,3 +1,4 @@
+# =============== 基本套件與初始化 ===============
 from flask import Flask, request, abort, jsonify
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
@@ -9,15 +10,18 @@ import requests
 import time
 import threading
 
+# =============== 系統初始化 ===============
 app = Flask(__name__)
 line_bot_api = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
 handler = WebhookHandler(os.getenv('CHANNEL_SECRET'))
 openai.api_key = os.getenv('OPENAI_API_KEY')
 NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
+
+# =============== 使用者狀態管理 ===============
 user_mode = {}
 user_state = {}  # user_id: { "mode": "active", "last_question": "...", "awaiting_answer": True }
 
-
+# =============== GPT回覆推送（背景處理用） ===============
 def gpt_push_response(context, user_id, user_text, system_prompt, history_messages=None):
     user_prompt = user_text
     if history_messages:
@@ -45,7 +49,7 @@ def gpt_push_response(context, user_id, user_text, system_prompt, history_messag
         print(f"❌ GPT 回覆失敗：{e}")
         line_bot_api.push_message(user_id, TextSendMessage(text="哎呀我卡住了 🥲 再問我一次好嗎？"))
 
-
+# =============== 系統提示語對應（每種模式的等待語） ===============
 def get_waiting_message(context):
     messages = {
         "answer_feedback": "來看看你答得怎麼樣 🤔",
@@ -56,6 +60,7 @@ def get_waiting_message(context):
     }
     return messages.get(context, "稍等一下，我想想看 🤔")
 
+# =============== GPT同步回覆版本 ===============
 def gpt_with_typing(context, user_id, reply_token, system_prompt, user_prompt):
     wait_msg = get_waiting_message(context)
     line_bot_api.reply_message(reply_token, TextSendMessage(text=wait_msg))
@@ -71,6 +76,7 @@ def gpt_with_typing(context, user_id, reply_token, system_prompt, user_prompt):
     line_bot_api.push_message(user_id, TextSendMessage(text=reply_text))
     return reply_text
 
+# =============== 歷史紀錄讀取（從 MongoDB） ===============
 def load_history(user_id, retries=3, delay=3):
     url = f"{NODE_SERVER_URL}/get_history"
     for attempt in range(retries):
@@ -87,6 +93,7 @@ def load_history(user_id, retries=3, delay=3):
     print("⚠️ 多次重試後仍失敗，返回空歷史訊息")
     return {"messages": []}
 
+# =============== LINE Webhook Endpoint ===============
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers.get('X-Line-Signature')
@@ -165,12 +172,15 @@ def generate_active_question(level=1):
     )
 
     return response["choices"][0]["message"]["content"].strip()
+
+# =============== 接收使用者訊息 ===============
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
     user_text = event.message.text.strip()
     print(f"💬 收到來自 {user_id} 的訊息: {user_text}")
-    
+
+    # === 模式切換選單處理 ===
     mode_map = {
         "mode_passive": "passive",
         "mode_active": "active",
@@ -209,6 +219,7 @@ def handle_message(event):
     mode = user_mode.get(user_id, "passive")
     print(f"用戶 {user_id} 的目前模式：{mode}")
 
+    # === 載入歷史訊息，加入 prompt 記憶中 ===
     history = load_history(user_id)
     messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
     
