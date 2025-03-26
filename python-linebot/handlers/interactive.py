@@ -54,17 +54,8 @@ def handle_interactive_mode(event, user_id, user_text, line_bot_api, history):
     wait_msg = get_waiting_message("general_chat")
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=wait_msg))
 
-    # 💾 儲存使用者輸入
-    try:
-        requests.post(f"{NODE_SERVER_URL}/save_message", json={
-            "user_id": user_id,
-            "message_text": user_text,
-            "bot_response": "",
-            "message_type": "text"
-        }, timeout=10)
-        print(f"✅ [Interactive Mode] 儲存使用者輸入：{user_text}")
-    except requests.exceptions.RequestException as e:
-        print(f"❌ [Interactive Mode] 儲存使用者輸入失敗：{e}")
+    # 在這個檔案裡不需要儲存 user_text，統一由 app.py 處理
+
 
     # 🧠 建立 prompt
     system_prompt = (
