@@ -113,8 +113,11 @@ def generate_interactive_response(conversation):
     system_prompt = """
 你是一位熱心、有耐心的 C 語言學習夥伴，會用自然、口語的方式與使用者互動。
 
-請針對使用者的提問或對話，給予清楚但輕鬆的回答。
-請避免只重複使用者的話，並盡量加入實際的說明、比喻或簡單的程式碼範例。
+請根據使用者「最近的提問內容」，做出清楚但輕鬆的回答。
+即使之前講過某個主題，若使用者切換話題，請優先回應「目前的提問」。
+
+請避免重複使用者的語句，盡量提供實際說明、比喻、或簡單的程式碼範例。
+
 最後可以加上一句反問，引導使用者繼續思考，例如：
 - 你有遇過這樣的情況嗎？
 - 如果是你會怎麼寫？
@@ -249,8 +252,12 @@ def handle_message(event):
         response_text = GPT_response(messages)
     elif mode == "interactive":
         # 取最近 4 筆對話（含使用者輸入與 AI 回應）
-        recent = [msg for msg in messages if msg["role"] in ["user", "assistant"]]
-        short_history = recent[-4:] if len(recent) > 0 else [{"role": "user", "content": user_text}]
+        recent = [
+            msg for msg in messages
+            if msg["role"] in ["user", "assistant"] and msg["content"].strip() not in ["", "請選擇學習模式"]
+        ]
+        short_history = recent[-3:]  # 留 3 則歷史（太多沒意義）
+        short_history.append({"role": "user", "content": user_text})  # 現在輸入強制加入
         response_text = generate_interactive_response(short_history)
     
     elif mode == "active":
