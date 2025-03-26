@@ -4,6 +4,7 @@ from linebot.exceptions import InvalidSignatureError
 from linebot.models import *
 import os, openai
 import requests
+import time
 
 app = Flask(__name__)
 line_bot_api = LineBotApi(os.getenv('CHANNEL_ACCESS_TOKEN'))
@@ -13,16 +14,22 @@ NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
 user_mode = {}
 user_state = {}  # user_id: { "mode": "active", "last_question": "...", "awaiting_answer": True }
 
-def load_history(user_id):
+
+def load_history(user_id, retries=3, delay=3):
     url = f"{NODE_SERVER_URL}/get_history"
-    try:
-        response = requests.get(url, params={"user_id": user_id, "limit": 10}, timeout=30)
-        response.raise_for_status()
-        data = response.json()
-        return data if "messages" in data else {"messages": []}
-    except requests.exceptions.RequestException as e:
-        print(f"❌ API 讀取失敗: {e}")
-        return {"messages": []}
+    for attempt in range(retries):
+        try:
+            response = requests.get(url, params={"user_id": user_id, "limit": 10}, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            print(f"✅ 第 {attempt+1} 次嘗試成功取得歷史訊息")
+            return data if "messages" in data else {"messages": []}
+        except requests.exceptions.RequestException as e:
+            print(f"❌ API 讀取失敗 ({attempt+1}/{retries}): {e}")
+            if attempt < retries - 1:
+                time.sleep(delay)
+    print("⚠️ 多次重試後仍失敗，返回空歷史訊息")
+    return {"messages": []}
 
 
 
