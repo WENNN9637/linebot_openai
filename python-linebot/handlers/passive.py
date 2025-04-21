@@ -21,26 +21,14 @@ def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api):
         )
         reply_text = response["choices"][0]["message"]["content"].strip()
 
-        print("✅ GPT 回覆成功：", reply_text)
-
-        # 嘗試推播訊息
         line_bot_api.push_message(user_id, TextSendMessage(text=reply_text))
-        print("✅ LINE 推送成功")
-
-        # 儲存到資料庫
-        res = requests.post(f"{NODE_SERVER_URL}/save_message", json={
-            "user_id": user_id,
-            "message_text": "",
-            "bot_response": reply_text,
-            "message_type": "bot"
-        }, timeout=10)
-        print("✅ 儲存成功", res.status_code)
 
     except Exception as e:
         import traceback
         traceback.print_exc()
         print(f"❌ Passive 回覆錯誤：{type(e)} → {e}")
         line_bot_api.push_message(user_id, TextSendMessage(text="哎呀我卡住了，再問一次看看 🥲"))
+
 
 
 def handle_passive_mode(event, user_id, user_text, line_bot_api):
