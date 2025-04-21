@@ -58,6 +58,19 @@ app.get("/get_history", async (req, res) => {
     }
 });
 
+// Express 路由
+app.post('/daily_challenge', async (req, res) => {
+  const users = await db.collection('users').find({ subscribed: true }).toArray();
+  for (const user of users) {
+    axios.post('http://你的-python-server-url/send_daily_challenge', {
+      user_id: user.user_id,
+      user_level: user.level || 'beginner'
+    });
+  }
+  res.send('Daily challenge triggered');
+});
+
+
 // ✅ 啟動伺服器（等 MongoDB 成功才開始接請求）
 const startServer = async () => {
     try {
