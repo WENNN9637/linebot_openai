@@ -288,9 +288,9 @@ def handle_message(event):
                 "last_question": question,
                 "awaiting_answer": True
             }
-            reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{description}\n\n第一題：{question}\n\n你覺得答案是什麼？"
+            reply_text = f"已切換至『{mode_name}』模式\n\n{description}\n\n第一題：{question}\n\n你覺得答案是什麼？"
         else:
-            reply_text = f"✅ 已切換至『{mode_name}』模式\n\n{description}"
+            reply_text = f"已切換至『{mode_name}』模式\n\n{description}"
 
         line_bot_api.reply_message(event.reply_token, TextSendMessage(reply_text))
         save_to_mongo(user_id, bot_msg=reply_text)
