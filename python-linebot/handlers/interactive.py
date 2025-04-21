@@ -15,9 +15,11 @@ def get_waiting_message(context="general_chat"):
 
 # === GPT 背景回覆推送（有記憶） ===
 def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, history_messages=None):
-    user_prompt = user_text
+    gpt_messages = [{"role": "system", "content": system_prompt}]
     if history_messages:
-        user_prompt = "\n".join([msg["content"] for msg in history_messages])
+        gpt_messages += history_messages  # ⬅️ 用來保留歷史記憶
+    gpt_messages.append({"role": "user", "content": user_text})  # ⬅️ 新問題才是這回合的重點
+
     try:
         response = openai.ChatCompletion.create(
             model="gpt-4o",
