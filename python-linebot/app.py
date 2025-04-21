@@ -129,6 +129,55 @@ def callback():
             print("📩 LINE 訊息:", message_data)
     return 'OK'
 
+@app.route("/send_daily_challenge", methods=["POST"])
+def send_daily_challenge():
+    data = request.get_json()
+    user_id = data.get("user_id")
+    user_level = data.get("user_level", "beginner")
+    day_count = data.get("day_count", 1)
+
+    if not user_id:
+        return jsonify({"error": "缺少 user_id"}), 400
+
+    # ✅ 產生 GPT 題目
+    try:
+        system_prompt = (
+            "你是一位親切、有耐心的 C 語言教練，擅長根據學生程度出一題小挑戰。\n"
+            f"目前學生等級是：{user_level.upper()}。\n"
+            "請出一題不超過 100 字的 C 語言練習題（可以是 if 判斷、迴圈、字串、指標…），用自然中文描述，盡量生活化。\n"
+            "最後加一句鼓勵，例如「你會怎麼做？」或「寫完可以傳給我看看哦 👀」\n"
+            "不需要提供答案。"
+        )
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": "請給我一題每日挑戰題"}
+            ]
+        )
+        challenge_text = response["choices"][0]["message"]["content"].strip()
+    except Exception as e:
+        print(f"❌ GPT 題目生成失敗: {e}")
+        return jsonify({"error": "GPT 失敗"}), 500
+
+    # ✅ 組合訊息
+    message = (
+        f"🌞【每日挑戰 - {user_level.upper()}】\n"
+        f"#Day{day_count}\n\n"
+        f"{challenge_text}\n\n"
+        "完成後回傳給我，我幫你看看是否正確"
+    )
+
+    # ✅ 發送到 LINE
+    try:
+        line_bot_api.push_message(user_id, TextSendMessage(text=message))
+        save_to_mongo(user_id, bot_msg=message)
+    except Exception as e:
+        print(f"❌ LINE 推送失敗: {e}")
+        return jsonify({"error": "LINE 發送失敗"}), 500
+
+    return jsonify({"status": "success", "sent_to": user_id})
+
 def send_mode_selection(user_id):
     flex_message = FlexSendMessage(
         alt_text="請選擇學習模式",
