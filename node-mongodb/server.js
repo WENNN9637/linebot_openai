@@ -62,7 +62,7 @@ app.get("/get_history", async (req, res) => {
 app.post('/daily_challenge', async (req, res) => {
   const users = await db.collection('users').find({ subscribed: true }).toArray();
   for (const user of users) {
-    axios.post('http://你的-python-server-url/send_daily_challenge', {
+    axios.post('https://node-mongo-b008.onrender.com/send_daily_challenge', {
       user_id: user.user_id,
       user_level: user.level || 'beginner'
     });
