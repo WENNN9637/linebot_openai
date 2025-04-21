@@ -4,9 +4,6 @@ import openai
 import requests
 from linebot.models import TextSendMessage
 
-# === 設定 ===
-NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
-openai.api_key = "你的 OpenAI API Key（或用 app.py 設定就可省略）"
 
 # === 🧠 等待語提示 ===
 def get_waiting_message(context):
