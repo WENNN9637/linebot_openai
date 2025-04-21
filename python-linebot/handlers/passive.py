@@ -3,8 +3,7 @@ import openai
 import requests
 from linebot.models import TextSendMessage
 
-NODE_SERVER_URL = "https://node-mongo-b008.onrender.com"
-openai.api_key = "你的 OpenAI API Key"  # 或用 app.py 中設定即可
+
 
 def get_waiting_message(context="general_chat"):
     return {
