@@ -6,7 +6,17 @@ const bodyParser = require('body-parser');
 const app = express();
 app.use(bodyParser.json());
 
+const axios = require('axios');
+
+
+app.use(express.json());
 const PORT = process.env.PORT || 3000;
+
+const users = [
+  { user_id: "Uxxxxxx1", level: "beginner", day: 12 },
+  { user_id: "Uxxxxxx2", level: "intermediate", day: 8 },
+  { user_id: "Uxxxxxx3", level: "advanced", day: 20 }
+];
 
 // ✅ 健康檢查
 app.get('/health', (req, res) => {
@@ -58,16 +68,42 @@ app.get("/get_history", async (req, res) => {
     }
 });
 
-// Express 路由
-app.post('/daily_challenge', async (req, res) => {
-  const users = await db.collection('users').find({ subscribed: true }).toArray();
+app.post("/daily_challenge", async (req, res) => {
   for (const user of users) {
-    axios.post('https://node-mongo-b008.onrender.com/send_daily_challenge', {
-      user_id: user.user_id,
-      user_level: user.level || 'beginner'
-    });
+    try {
+      await axios.post("https://你的-python-server.onrender.com/send_daily_challenge", {
+        user_id: user.user_id,
+        user_level: user.level,
+        day_count: user.day
+      });
+    } catch (err) {
+      console.error(`❌ 傳送給 ${user.user_id} 失敗:`, err.message);
+    }
   }
-  res.send('Daily challenge triggered');
+
+  res.send("✅ 所有挑戰題已傳送");
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Node server running on port ${PORT}`);
+});app.post("/daily_challenge", async (req, res) => {
+  for (const user of users) {
+    try {
+      await axios.post("https://你的-python-server.onrender.com/send_daily_challenge", {
+        user_id: user.user_id,
+        user_level: user.level,
+        day_count: user.day
+      });
+    } catch (err) {
+      console.error(`❌ 傳送給 ${user.user_id} 失敗:`, err.message);
+    }
+  }
+
+  res.send("✅ 所有挑戰題已傳送");
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Node server running on port ${PORT}`);
 });
 
 
