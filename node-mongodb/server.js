@@ -2,28 +2,26 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const axios = require('axios');
 
 const app = express();
 app.use(bodyParser.json());
 
-const axios = require('axios');
-
-
-app.use(express.json());
 const PORT = process.env.PORT || 3000;
-
-const users = [
-  { user_id: "Uxxxxxx1", level: "beginner", day: 12 },
-  { user_id: "Uxxxxxx2", level: "intermediate", day: 8 },
-  { user_id: "Uxxxxxx3", level: "advanced", day: 20 }
-];
 
 // ✅ 健康檢查
 app.get('/health', (req, res) => {
     res.status(200).send('✅ I am alive');
 });
 
-// ✅ 定義 Schema 與 Model
+// ✅ 使用者資料（模擬資料）
+const users = [
+    { user_id: "Uxxxxxx1", level: "beginner", day: 12 },
+    { user_id: "Uxxxxxx2", level: "intermediate", day: 8 },
+    { user_id: "Uxxxxxx3", level: "advanced", day: 20 }
+];
+
+// ✅ MongoDB Schema 與 Model
 const messageSchema = new mongoose.Schema({
     user_id: { type: String, required: true },
     message_text: { type: String, default: "" },
@@ -68,44 +66,23 @@ app.get("/get_history", async (req, res) => {
     }
 });
 
+// ✅ 每日挑戰 API
 app.post("/daily_challenge", async (req, res) => {
-  for (const user of users) {
-    try {
-      await axios.post("https://你的-python-server.onrender.com/send_daily_challenge", {
-        user_id: user.user_id,
-        user_level: user.level,
-        day_count: user.day
-      });
-    } catch (err) {
-      console.error(`❌ 傳送給 ${user.user_id} 失敗:`, err.message);
+    for (const user of users) {
+        try {
+            await axios.post("https://你的-python-server.onrender.com/send_daily_challenge", {
+                user_id: user.user_id,
+                user_level: user.level,
+                day_count: user.day
+            });
+            console.log(`✅ 傳送給 ${user.user_id} 成功`);
+        } catch (err) {
+            console.error(`❌ 傳送給 ${user.user_id} 失敗:`, err.message);
+        }
     }
-  }
 
-  res.send("✅ 所有挑戰題已傳送");
+    res.send("✅ 所有挑戰題已傳送");
 });
-
-app.listen(PORT, () => {
-  console.log(`✅ Node server running on port ${PORT}`);
-});app.post("/daily_challenge", async (req, res) => {
-  for (const user of users) {
-    try {
-      await axios.post("https://你的-python-server.onrender.com/send_daily_challenge", {
-        user_id: user.user_id,
-        user_level: user.level,
-        day_count: user.day
-      });
-    } catch (err) {
-      console.error(`❌ 傳送給 ${user.user_id} 失敗:`, err.message);
-    }
-  }
-
-  res.send("✅ 所有挑戰題已傳送");
-});
-
-app.listen(PORT, () => {
-  console.log(`✅ Node server running on port ${PORT}`);
-});
-
 
 // ✅ 啟動伺服器（等 MongoDB 成功才開始接請求）
 const startServer = async () => {
@@ -121,7 +98,7 @@ const startServer = async () => {
             console.log(`🚀 伺服器啟動成功，正在監聽 port ${PORT}`);
         });
 
-        // 可選：每 5 分鐘做一次 ping（只監控用，不自動重連）
+        // 每 5 分鐘 ping MongoDB 一次
         setInterval(async () => {
             try {
                 await mongoose.connection.db.admin().ping();
@@ -129,8 +106,7 @@ const startServer = async () => {
             } catch (err) {
                 console.error("❌ MongoDB ping 失敗:", err);
             }
-        }, 300000); // 5 分鐘
-
+        }, 300000);
     } catch (err) {
         console.error("❌ MongoDB 連線失敗，無法啟動伺服器:", err);
         process.exit(1);
