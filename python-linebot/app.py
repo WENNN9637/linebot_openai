@@ -58,13 +58,13 @@ def gpt_push_response(context, user_id, user_text, system_prompt, history_messag
 # =============== 系統提示語對應（每種模式的等待語） ===============
 def get_waiting_message(context):
     messages = {
-        "answer_feedback": "來看看你答得怎麼樣 🤔",
-        "explain_answer": "讓我查查正確答案是什麼 🧐",
-        "followup_concept": "好問題，我來解釋一下 ✍️",
-        "next_question": "等我生一題新的出來 🎯",
-        "general_chat": "我想想怎麼說比較好 🤔"
+        "answer_feedback": "來看看你答得怎麼樣",
+        "explain_answer": "讓我查查正確答案是什麼...",
+        "followup_concept": "好問題，我來解釋一下！",
+        "next_question": "等我生一題新的出來><",
+        "general_chat": "我想想怎麼說比較好..."
     }
-    return messages.get(context, "稍等一下，我想想看 🤔")
+    return messages.get(context, "稍等一下，我想想看")
 
 # =============== GPT同步回覆版本 ===============
 def gpt_with_typing(context, user_id, reply_token, system_prompt, user_prompt):
@@ -162,7 +162,7 @@ def send_daily_challenge():
 
     # ✅ 組合訊息
     message = (
-        f"🌞【每日挑戰 - {user_level.upper()}】\n"
+        f"【每日挑戰 - {user_level.upper()}】\n"
         f"#Day{day_count}\n\n"
         f"{challenge_text}\n\n"
         "完成後回傳給我，我幫你看看是否正確"
@@ -302,7 +302,7 @@ def handle_message(event):
 
     # 載入歷史訊息（用於有上下文的模式）
     history = load_history(user_id)
-    messages = [{"role": "system", "content": "你是一個智慧助理，請記住使用者的對話歷史。"}]
+    messages = [{"role": "system", "content": "你是一位專業的 C 語言學習助教，擅長根據上下文進行回答，避免重複主題。"}]
     for msg in sorted(history.get("messages", []), key=lambda x: x.get("timestamp", "")):
         if msg.get("message_text"):
             messages.append({"role": "user", "content": msg["message_text"]})
