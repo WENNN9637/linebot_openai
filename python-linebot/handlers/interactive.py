@@ -80,5 +80,43 @@ def handle_interactive_mode(event, user_id, user_text, line_bot_api, history):
         target=gpt_push_response,
         args=(context, user_id, user_text, system_prompt, line_bot_api, short_history)
     ).start()
+#GPT 題目生成邏輯
+def generate_daily_challenge_by_gpt(user_level):
+    level_description = {
+        "beginner": "初學者（剛接觸 C 語言，適合 if/else、變數、輸入輸出）",
+        "intermediate": "中階學生（會用陣列、迴圈、函式）",
+        "advanced": "進階學生（懂指標、記憶體管理、遞迴等）"
+    }
+
+    prompt = f"""
+你是一位熱心、有耐心的 C 語言講師。
+
+請根據以下程度說明，為學生出一題「當日練習題」：
+- 程度：{level_description.get(user_level, '初學者')}
+- 題目風格：清楚明確的中文描述，可以加入一些趣味主題（如生活化小任務）
+- 不需太長，也不要超過 100 字
+- 最後加一句鼓勵語，例如「寫完可以貼給我看看哦 👀」或「你會怎麼寫呢？」
+
+只需題目內容本身，不需程式碼、解答或說明。
+"""
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-4o",
+            messages=[{"role": "system", "content": prompt}]
+        )
+        question = response.choices[0].message.content.strip()
+        return question
+    except Exception as e:
+        print(f"❌ 無法生成每日題目：{e}")
+        return "今天有點塞車，明天再來挑戰吧！🚧"
+#推送題目
+def push_daily_challenge(user_id, user_level, line_bot_api):
+    challenge = generate_daily_challenge_by_gpt(user_level)
+    intro = f"🌞【每日挑戰 - {user_level.upper()}】\n\n"
+    outro = "\n\n完成後可以回傳給我，我幫你看看 👍"
+    
+    full_message = intro + challenge + outro
+    line_bot_api.push_message(user_id, TextSendMessage(text=full_message))
 
 
