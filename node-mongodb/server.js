@@ -35,14 +35,22 @@ const Message = mongoose.model("Message", messageSchema);
 
 // ✅ 儲存訊息 API
 app.post("/save_message", async (req, res) => {
-    const { user_id, message_text, message_type, bot_response } = req.body;
+    const { user_id, message_text, message_type, bot_response, interaction_rounds, constructive_contribution } = req.body;
+    
     if (!user_id || (!message_text && !bot_response)) {
         console.log("❌ 缺少必要資料 (user_id + message_text 或 bot_response)");
         return res.status(400).json({ error: "Invalid data" });
     }
 
     try {
-        const message = new Message({ user_id, message_text, bot_response, message_type });
+        const message = new Message({
+            user_id,
+            message_text,
+            bot_response,
+            message_type,
+            interaction_rounds: interaction_rounds || 0, // 🔥 預設0
+            constructive_contribution: constructive_contribution || false // 🔥 預設false
+        });
         await message.save();
         console.log("✅ 成功存入 MongoDB");
         res.json({ status: "success", message: "Message saved" });
@@ -51,6 +59,7 @@ app.post("/save_message", async (req, res) => {
         res.status(500).json({ error: "Database error" });
     }
 });
+
 
 // ✅ 取得歷史訊息 API
 app.get("/get_history", async (req, res) => {
