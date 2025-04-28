@@ -333,7 +333,9 @@ def handle_message(event):
             TextSendMessage(text="未知模式，請重新選擇 \n請輸入「模式」或點選選單選擇學習模式。")
         )
         return
-
+@app.route("/", methods=["GET"])
+def home():
+    return "服務運作中～", 200
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
