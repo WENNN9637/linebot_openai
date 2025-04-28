@@ -27,7 +27,7 @@ const messageSchema = new mongoose.Schema({
     message_text: { type: String, default: "" },
     bot_response: { type: String, default: "" },
     message_type: { type: String, required: true },
-    interaction_rounds: { type: Number, default: 0 },            // ✅ 加這個
+    #interaction_rounds: { type: Number, default: 0 },            // ✅ 加這個
     constructive_contribution: { type: Boolean, default: false }, // ✅ 加這個
     timestamp: { type: Date, default: Date.now }
 });
