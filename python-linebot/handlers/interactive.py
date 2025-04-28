@@ -15,9 +15,8 @@ def get_waiting_message(context="general_chat"):
 # === 改良版 GPT 背景回覆推送（含互動追蹤） ===
 import traceback
 import time
-
-import traceback
-import time
+import os
+NODE_SERVER_URL = os.getenv("NODE_SERVER_URL", "https://node-mongo-b008.onrender.com")
 
 def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, history_messages=None, retry_count=1):
     try:
