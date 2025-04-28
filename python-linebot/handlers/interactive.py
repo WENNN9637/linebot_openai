@@ -16,6 +16,9 @@ def get_waiting_message(context="general_chat"):
 import traceback
 import time
 
+import traceback
+import time
+
 def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, history_messages=None, retry_count=1):
     try:
         gpt_messages = [{"role": "system", "content": system_prompt}]
@@ -28,35 +31,44 @@ def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, 
 
         gpt_messages.append({"role": "user", "content": user_text})
 
-        print(f"🛠 呼叫 GPT，訊息總數: {len(gpt_messages)}")
-        
+        print(f"🛠 [DEBUG] 呼叫 GPT中...")
+        print(f"🛠 [DEBUG] GPT 傳送訊息數量: {len(gpt_messages)}")
+
         response = openai.ChatCompletion.create(
             model="gpt-4o",
             messages=gpt_messages,
-            timeout=30  # 最多等30秒
+            timeout=30
         )
 
-        reply_text = response["choices"][0]["message"]["content"].strip()
-        print(f"✅ GPT回應成功，內容: {reply_text}")
+        print(f"🛠 [DEBUG] GPT 回傳 raw: {response}")
 
-        # 🛠 再推送LINE
+        if not response or "choices" not in response or not response["choices"]:
+            raise ValueError("GPT 回傳空的 choices，無法產生回覆")
+
+        reply_text = response["choices"][0]["message"]["content"].strip()
+        print(f"🛠 [DEBUG] GPT 回覆內容: {reply_text}")
+
+        # 推送LINE前也確認
+        print(f"🛠 [DEBUG] 準備推送到 LINE UserID: {user_id}")
+
         line_bot_api.push_message(user_id, TextSendMessage(text=reply_text))
-        print(f"✅ 推送到LINE成功")
+        print(f"✅ [DEBUG] 成功推送到 LINE")
 
     except Exception as e:
-        print(f"❌ 發生錯誤 ({type(e).__name__}): {e}")
         traceback.print_exc()
+        print(f"❌ [DEBUG] 發生例外錯誤 ({type(e).__name__}): {e}")
 
         if retry_count > 0:
-            print(f"🔄 嘗試重新呼叫 GPT，剩餘重試次數: {retry_count}")
-            time.sleep(2)  # 稍微等待一下再重試
+            print(f"🔄 [DEBUG] 嘗試重新呼叫 GPT，剩餘重試次數: {retry_count}")
+            time.sleep(2)
             gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, history_messages, retry_count=retry_count-1)
         else:
-            print("🚨 重試後仍失敗，回報錯誤訊息")
+            print("🚨 [DEBUG] 重試後仍失敗，嘗試推送錯誤提示訊息")
             try:
                 line_bot_api.push_message(user_id, TextSendMessage(text="哎呀，我這邊出了一點問題，請再問我一次 🙏"))
             except Exception as push_err:
-                print(f"❌ 連推送錯誤訊息都失敗：{push_err}")
+                print(f"❌ [DEBUG] 推送錯誤訊息到LINE也失敗: {push_err}")
+
 
 # === 🗨️ 互動式模式處理主函式 ===
 # === 🗨️ 改良版互動式模式處理主函式 ===
