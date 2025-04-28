@@ -58,9 +58,9 @@ def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, 
             "user_id": user_id,
             "message_text": user_text,
             "bot_response": reply_text,
-            "message_type": "bot",
+            "message_type": "bot"
             #"interaction_rounds": interaction_rounds,
-            "constructive_contribution": constructive_contribution
+            #"constructive_contribution": constructive_contribution
         }, timeout=10)
         # 🛠 互動完成後，同步更新user_stats
         try:
