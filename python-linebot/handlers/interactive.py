@@ -67,6 +67,7 @@ def handle_interactive_mode(event, user_id, user_text, line_bot_api, history):
         and "回聲程序" not in msg["content"]
     ]
     short_history = recent[-4:]  # 最近四筆互動（更多回合追蹤）
+    print("🔍 撈到的歷史資料：", history)
 
     # 回覆等待語
     wait_msg = get_waiting_message("general_chat")
