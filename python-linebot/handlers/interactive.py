@@ -62,12 +62,21 @@ def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, 
             "interaction_rounds": interaction_rounds,
             "constructive_contribution": constructive_contribution
         }, timeout=10)
+        # 🛠 互動完成後，同步更新user_stats
+        try:
+            requests.post(f"{NODE_SERVER_URL}/update_user_stats", json={
+                "user_id": user_id,
+                "constructive": constructive_contribution
+            }, timeout=10)
+            print(f"✅ 成功更新互動次數統計")
+        except Exception as e:
+            print(f"❌ 更新互動次數統計失敗: {e}")
 
     except Exception as e:
         import traceback
         traceback.print_exc()
         print(f"❌ [DEBUG] 發生例外錯誤 ({type(e).__name__}): {e}")
-
+    
 
 # === 🗨️ 互動式模式處理主函式 ===
 # === 🗨️ 改良版互動式模式處理主函式 ===
