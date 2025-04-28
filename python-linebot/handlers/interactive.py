@@ -68,6 +68,14 @@ def handle_interactive_mode(event, user_id, user_text, line_bot_api, history):
     ]
     short_history = recent[-4:]  # 最近四筆互動（更多回合追蹤）
     print("🔍 撈到的歷史資料：", history)
+    # 修正歷史資料格式
+    fixed_history = []
+    for msg in history.get("messages", []):
+        if msg.get("message_text"):
+            fixed_history.append({"role": "user", "content": msg["message_text"]})
+        elif msg.get("bot_response"):
+            fixed_history.append({"role": "assistant", "content": msg["bot_response"]})
+
 
     # 回覆等待語
     wait_msg = get_waiting_message("general_chat")
