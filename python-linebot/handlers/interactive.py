@@ -31,8 +31,16 @@ def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, 
 
         gpt_messages.append({"role": "user", "content": user_text})
 
-        print(f"🛠 [DEBUG] 呼叫 GPT中...")
-        print(f"🛠 [DEBUG] GPT 傳送訊息數量: {len(gpt_messages)}")
+        print(f"🛠 [DEBUG] 呼叫 GPT中，訊息數量: {len(gpt_messages)}")
+
+        # 🛠 計算互動回合數
+        interaction_rounds = 0
+        if history_messages:
+            interaction_rounds = len([msg for msg in history_messages if msg.get("role") == "user"])
+        interaction_rounds += 1
+
+        # 🛠 判斷建設性貢獻
+        constructive_contribution = len(user_text.strip()) > 5
 
         response = openai.ChatCompletion.create(
             model="gpt-4o",
@@ -40,34 +48,26 @@ def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, 
             timeout=30
         )
 
-        print(f"🛠 [DEBUG] GPT 回傳 raw: {response}")
-
-        if not response or "choices" not in response or not response["choices"]:
-            raise ValueError("GPT 回傳空的 choices，無法產生回覆")
-
         reply_text = response["choices"][0]["message"]["content"].strip()
         print(f"🛠 [DEBUG] GPT 回覆內容: {reply_text}")
-
-        # 推送LINE前也確認
-        print(f"🛠 [DEBUG] 準備推送到 LINE UserID: {user_id}")
 
         line_bot_api.push_message(user_id, TextSendMessage(text=reply_text))
         print(f"✅ [DEBUG] 成功推送到 LINE")
 
+        # 🛠 儲存訊息到Mongo
+        requests.post(f"{NODE_SERVER_URL}/save_message", json={
+            "user_id": user_id,
+            "message_text": user_text,
+            "bot_response": reply_text,
+            "message_type": "bot",
+            "interaction_rounds": interaction_rounds,
+            "constructive_contribution": constructive_contribution
+        }, timeout=10)
+
     except Exception as e:
+        import traceback
         traceback.print_exc()
         print(f"❌ [DEBUG] 發生例外錯誤 ({type(e).__name__}): {e}")
-
-        if retry_count > 0:
-            print(f"🔄 [DEBUG] 嘗試重新呼叫 GPT，剩餘重試次數: {retry_count}")
-            time.sleep(2)
-            gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, history_messages, retry_count=retry_count-1)
-        else:
-            print("🚨 [DEBUG] 重試後仍失敗，嘗試推送錯誤提示訊息")
-            try:
-                line_bot_api.push_message(user_id, TextSendMessage(text="哎呀，我這邊出了一點問題，請再問我一次 🙏"))
-            except Exception as push_err:
-                print(f"❌ [DEBUG] 推送錯誤訊息到LINE也失敗: {push_err}")
 
 
 # === 🗨️ 互動式模式處理主函式 ===
