@@ -49,7 +49,7 @@ def gpt_push_response(context, user_id, user_text, system_prompt, history_messag
             "message_text": "",
             "bot_response": reply_text,
             "message_type": "bot",
-            "interaction_rounds": interaction_rounds  # ✅ 新增這個
+            #"interaction_rounds": interaction_rounds  # ✅ 新增這個
         }, timeout=10)
 
     except Exception as e:
