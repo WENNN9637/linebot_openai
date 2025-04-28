@@ -31,6 +31,13 @@ def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, 
         gpt_messages.append({"role": "user", "content": user_text})
 
         print(f"🛠 [DEBUG] 呼叫 GPT中，訊息數量: {len(gpt_messages)}")
+        # 判斷是不是「系統切換模式」類型訊息
+        def is_mode_switch_message(text):
+            patterns = [
+                "mode_",
+                "已切換至",
+            ]
+            return any(pat in text for pat in patterns)
 
         # 🛠 計算互動回合數
         interaction_rounds = 0
@@ -63,14 +70,19 @@ def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, 
             #"constructive_contribution": constructive_contribution
         }, timeout=10)
         # 🛠 互動完成後，同步更新user_stats
-        try:
-            requests.post(f"{NODE_SERVER_URL}/update_user_stats", json={
-                "user_id": user_id,
-                "constructive": constructive_contribution
-            }, timeout=10)
-            print(f"✅ 成功更新互動次數統計")
-        except Exception as e:
-            print(f"❌ 更新互動次數統計失敗: {e}")
+        # 只有當回覆不是模式切換的時候，才更新互動次數
+        if not is_mode_switch_message(user_text) and not is_mode_switch_message(reply_text):
+            constructive_contribution = len(user_text.strip()) > 5
+            try:
+                requests.post(f"{NODE_SERVER_URL}/update_user_stats", json={
+                    "user_id": user_id,
+                    "constructive": constructive_contribution
+                }, timeout=10)
+                print(f"✅ 成功更新互動次數統計")
+            except Exception as e:
+                print(f"❌ 更新互動次數統計失敗: {e}")
+        else:
+            print(f"⚡ 檢測到系統模式訊息，不列入互動次數")
 
     except Exception as e:
         import traceback
