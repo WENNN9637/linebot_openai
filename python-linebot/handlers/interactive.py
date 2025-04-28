@@ -13,48 +13,50 @@ def get_waiting_message(context="general_chat"):
 
 # === GPT 背景回覆推送（有記憶） ===
 # === 改良版 GPT 背景回覆推送（含互動追蹤） ===
-def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, history_messages=None):
+import traceback
+import time
+
+def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, history_messages=None, retry_count=1):
     try:
         gpt_messages = [{"role": "system", "content": system_prompt}]
         if history_messages:
-            filtered_history = [
-                msg for msg in history_messages
-                if "回聲程序" not in msg["content"]
-            ]
-            gpt_messages += filtered_history
+            cleaned = []
+            for msg in history_messages:
+                if isinstance(msg, dict) and msg.get("role") in ["user", "assistant"] and msg.get("content"):
+                    cleaned.append({"role": msg["role"], "content": msg["content"]})
+            gpt_messages += cleaned
 
         gpt_messages.append({"role": "user", "content": user_text})
 
+        print(f"🛠 呼叫 GPT，訊息總數: {len(gpt_messages)}")
+        
         response = openai.ChatCompletion.create(
             model="gpt-4o",
-            messages=gpt_messages
+            messages=gpt_messages,
+            timeout=30  # 最多等30秒
         )
+
         reply_text = response["choices"][0]["message"]["content"].strip()
+        print(f"✅ GPT回應成功，內容: {reply_text}")
+
+        # 🛠 再推送LINE
         line_bot_api.push_message(user_id, TextSendMessage(text=reply_text))
-
-        # ✅ 記錄互動回合數
-        interaction_rounds = len([msg for msg in history_messages if msg["role"] == "user"]) if history_messages else 0
-        interaction_rounds += 1  # 加上這一回合
-
-        # ✅ 判斷是否有建設性貢獻
-        constructive_contribution = len(user_text.strip()) > 5  # 回覆內容要有5字以上才算有建設性（可再細化判斷）
-
-        # ✅ 儲存互動紀錄
-        try:
-            requests.post(f"{NODE_SERVER_URL}/save_message", json={
-                "user_id": user_id,
-                "message_text": user_text,
-                "bot_response": reply_text,
-                "message_type": "bot",
-                "interaction_rounds": interaction_rounds,
-                "constructive_contribution": constructive_contribution
-            }, timeout=10)
-        except Exception as e:
-            print(f"⚠️ 儲存訊息失敗: {e}")
+        print(f"✅ 推送到LINE成功")
 
     except Exception as e:
-        print(f"❌ GPT 回覆失敗：{e}")
-        line_bot_api.push_message(user_id, TextSendMessage(text="哎呀我卡住了 🥲 再問我一次好嗎？"))
+        print(f"❌ 發生錯誤 ({type(e).__name__}): {e}")
+        traceback.print_exc()
+
+        if retry_count > 0:
+            print(f"🔄 嘗試重新呼叫 GPT，剩餘重試次數: {retry_count}")
+            time.sleep(2)  # 稍微等待一下再重試
+            gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, history_messages, retry_count=retry_count-1)
+        else:
+            print("🚨 重試後仍失敗，回報錯誤訊息")
+            try:
+                line_bot_api.push_message(user_id, TextSendMessage(text="哎呀，我這邊出了一點問題，請再問我一次 🙏"))
+            except Exception as push_err:
+                print(f"❌ 連推送錯誤訊息都失敗：{push_err}")
 
 # === 🗨️ 互動式模式處理主函式 ===
 # === 🗨️ 改良版互動式模式處理主函式 ===
