@@ -28,7 +28,7 @@ const messageSchema = new mongoose.Schema({
     bot_response: { type: String, default: "" },
     message_type: { type: String, required: true },
     #interaction_rounds: { type: Number, default: 0 },            // ✅ 加這個
-    constructive_contribution: { type: Boolean, default: false }, // ✅ 加這個
+    #constructive_contribution: { type: Boolean, default: false }, // ✅ 加這個
     timestamp: { type: Date, default: Date.now }
 });
 const Message = mongoose.model("Message", messageSchema);
@@ -47,9 +47,9 @@ app.post("/save_message", async (req, res) => {
             user_id,
             message_text,
             bot_response,
-            message_type,
-            interaction_rounds: interaction_rounds || 0, // 🔥 預設0
-            constructive_contribution: constructive_contribution || false // 🔥 預設false
+            message_type
+            #interaction_rounds: interaction_rounds || 0, // 🔥 預設0
+            #constructive_contribution: constructive_contribution || false // 🔥 預設false
         });
         await message.save();
         console.log("✅ 成功存入 MongoDB");
