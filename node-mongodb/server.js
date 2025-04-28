@@ -60,6 +60,37 @@ app.post("/save_message", async (req, res) => {
     }
 });
 
+// ✅ 定義新的資料表
+const userStatsSchema = new mongoose.Schema({
+    user_id: { type: String, required: true, unique: true },
+    interaction_rounds: { type: Number, default: 0 },
+    constructive_count: { type: Number, default: 0 }
+});
+const UserStats = mongoose.model("UserStats", userStatsSchema);
+
+// ✅ 每次互動時更新互動次數
+app.post("/update_user_stats", async (req, res) => {
+    const { user_id, constructive } = req.body;
+    if (!user_id) {
+        return res.status(400).json({ error: "Missing user_id" });
+    }
+    try {
+        const update = { $inc: { interaction_rounds: 1 } };
+        if (constructive) {
+            update.$inc.constructive_count = 1;
+        }
+
+        const userStats = await UserStats.findOneAndUpdate(
+            { user_id },
+            update,
+            { upsert: true, new: true }
+        );
+        res.json({ status: "success", userStats });
+    } catch (err) {
+        console.error("❌ 更新用戶統計失敗:", err);
+        res.status(500).json({ error: "Database error" });
+    }
+});
 
 // ✅ 取得歷史訊息 API
 app.get("/get_history", async (req, res) => {
@@ -76,6 +107,8 @@ app.get("/get_history", async (req, res) => {
         res.status(500).json({ error: "伺服器錯誤" });
     }
 });
+
+
 
 // ✅ 每日挑戰 API
 app.post("/daily_challenge", async (req, res) => {
