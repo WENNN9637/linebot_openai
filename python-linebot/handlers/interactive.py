@@ -59,25 +59,19 @@ def gpt_push_response(context, user_id, user_text, system_prompt, line_bot_api, 
 # === 🗨️ 互動式模式處理主函式 ===
 # === 🗨️ 改良版互動式模式處理主函式 ===
 def handle_interactive_mode(event, user_id, user_text, line_bot_api, history):
-    # 歷史簡化（只留最近幾筆有用對話）
-    recent = [
-        msg for msg in history
-        if msg["role"] in ["user", "assistant"]
-        and msg["content"].strip() not in ["", "請選擇學習模式"]
-        and "回聲程序" not in msg["content"]
-    ]
-    short_history = recent[-4:]  # 最近四筆互動（更多回合追蹤）
-    print("🔍 撈到的歷史資料：", history)
-    # 修正歷史資料格式
-    fixed_history = []
-    for msg in history.get("messages", []):
+    # 🛠 修正版：正確建構有 role 的歷史資料
+    messages = [{"role": "system", "content": "你是一位專業的 C 語言學習助教，擅長根據上下文進行回答，避免重複主題。"}]
+    
+    for msg in sorted(history.get("messages", []), key=lambda x: x.get("timestamp", "")):
         if msg.get("message_text"):
-            fixed_history.append({"role": "user", "content": msg["message_text"]})
+            messages.append({"role": "user", "content": msg["message_text"]})
         elif msg.get("bot_response"):
-            fixed_history.append({"role": "assistant", "content": msg["bot_response"]})
+            messages.append({"role": "assistant", "content": msg["bot_response"]})
 
-
-    # 回覆等待語
+    # 🔥 這時 messages 就是完整歷史：有 user、有 bot
+    short_history = messages[-4:]  # 最近四筆有用互動
+    
+    # 送出等待提示
     wait_msg = get_waiting_message("general_chat")
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=wait_msg))
 
