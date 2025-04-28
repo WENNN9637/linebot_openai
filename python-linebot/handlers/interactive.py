@@ -76,7 +76,7 @@ def handle_interactive_mode(event, user_id, user_text, line_bot_api, history):
     # 🛠 修正版：正確建構有 role 的歷史資料
     messages = [{"role": "system", "content": "你是一位專業的 C 語言學習助教，擅長根據上下文進行回答，避免重複主題。"}]
     
-    for msg in sorted(history.get("messages", []), key=lambda x: x.get("timestamp", "")):
+    for msg in sorted(history, key=lambda x: x.get("timestamp", "")):
         if msg.get("message_text"):
             messages.append({"role": "user", "content": msg["message_text"]})
         elif msg.get("bot_response"):
